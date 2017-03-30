@@ -1,0 +1,7 @@
+[package]
+name = "ldparser"
+version = "0.1.0"
+authors = ["Vadzim Dambrouski <pftbest@gmail.com>"]
+
+[dependencies]
+nom = "*"

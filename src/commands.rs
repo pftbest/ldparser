@@ -25,6 +25,8 @@ named!(cmd_simple<&str, Command>, wsc!(do_parse!(
     >>
     tag_s!(")")
     >>
+    opt!(tag_s!(";"))
+    >>
     (Command::Simple{name: name.into(), args: args})
 )));
 
@@ -90,18 +92,17 @@ mod test {
                                      args: vec![Ident(String::from("msp430"))],
                                  }));
 
-        assert_eq!(command("LONG(0)"),
+        assert_eq!(command("LONG(0);"),
                    IResult::Done("",
                                  Command::Simple {
                                      name: String::from("LONG"),
                                      args: vec![Number(0)],
                                  }));
 
-        assert_eq!(command(". = 0;"),
+        assert_eq!(command("PROVIDE(. = 0);"),
                    IResult::Done("",
-                                 Command::Statement(Statement::Assign{
+                                 Command::Statement(Statement::Provide{
                                     symbol: String::from("."),
-                                    operator: String::from("="),
                                     expr: Number(0)
                                     })));
 

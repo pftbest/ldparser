@@ -68,7 +68,7 @@ named!(pub single<&str, Expression>, alt_complete!(
     expr_call | expr_nested | expr_simple
 ));
 
-named!(pub expression<&str, Vec<Expression>>, wsc!(many0!(
+named!(pub expression<&str, Vec<Expression>>, wsc!(many1!(
     single
 )));
 

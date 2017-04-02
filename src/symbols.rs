@@ -4,9 +4,17 @@ use nom::{IResult, Needed, Slice, InputIter, InputLength, ErrorKind, AsChar};
 pub const SYMBOL_NAME_ERROR: u32 = 1;
 pub const FILE_NAME_ERROR: u32 = 2;
 
+named!(pub symbol_name<&str, &str>, alt_complete!(
+    identifier | delimited!(
+        tag_s!("\""),
+        take_until_s!("\""),
+        tag_s!("\"")
+    )
+));
+
 /// Recognizes symbol name. Starts with a letter, underscore, or point and may
 /// include any letters, underscores, digits, points, and hyphens.
-pub fn symbol_name<T>(input: T) -> IResult<T, T>
+fn identifier<T>(input: T) -> IResult<T, T>
     where T: Slice<Range<usize>> + Slice<RangeFrom<usize>> + Slice<RangeTo<usize>>,
           T: InputIter + InputLength
 {
@@ -29,7 +37,7 @@ pub fn symbol_name<T>(input: T) -> IResult<T, T>
     IResult::Done(input.slice(input_length..), input)
 }
 
-/// Recognizes file name pattern. May contain '*'.
+/// Recognizes file name pattern. May contain '*' and ':'.
 pub fn file_name<T>(input: T) -> IResult<T, T>
     where T: Slice<Range<usize>> + Slice<RangeFrom<usize>> + Slice<RangeTo<usize>>,
           T: InputIter + InputLength
@@ -40,7 +48,7 @@ pub fn file_name<T>(input: T) -> IResult<T, T>
     }
     for (idx, item) in input.iter_indices() {
         let c = item.as_char();
-        if !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == '*') {
+        if !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == '*' || c == ':') {
             if idx == 0 {
                 return IResult::Error(error_position!(ErrorKind::Custom(FILE_NAME_ERROR), input));
             } else {
@@ -62,9 +70,11 @@ mod test {
         assert_eq!(symbol_name("A6*"), IResult::Done("*", "A6"));
         assert_eq!(symbol_name(".a_b-c.0 "), IResult::Done(" ", ".a_b-c.0"));
         assert_eq!(symbol_name("-"),
-                   IResult::Error(ErrorKind::Custom(SYMBOL_NAME_ERROR)));
+                   IResult::Error(ErrorKind::Alt));
         assert_eq!(symbol_name("5"),
-                   IResult::Error(ErrorKind::Custom(SYMBOL_NAME_ERROR)));
-        assert_eq!(file_name("*crtbegin*.o "), IResult::Done(" ", "*crtbegin*.o"));
+                   IResult::Error(ErrorKind::Alt));
+        assert_eq!(symbol_name("\"5\""), IResult::Done("", "5"));
+        assert_eq!(file_name("*crtbegin*.o "),
+                   IResult::Done(" ", "*crtbegin*.o"));
     }
 }

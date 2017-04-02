@@ -6,7 +6,7 @@ use sections::{sections, Section};
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    Simple { name: String, args: Vec<Vec<Expression>> },
+    Simple { name: String, args: Vec<Expression> },
     Memory(Vec<Region>),
     Statement(Statement),
     Include(String),
@@ -66,7 +66,7 @@ named!(cmd_include<&str, Command>, wsc!(do_parse!(
 )));
 
 named!(command<&str, Command>, alt_complete!(
-    cmd_memory | cmd_sections | cmd_include | cmd_statement | cmd_simple
+    cmd_memory | cmd_sections | cmd_include | cmd_simple | cmd_statement
 ));
 
 named!(pub script<&str, Vec<Command>>, many0!(
@@ -78,7 +78,7 @@ mod test {
     use nom::IResult;
     use commands::{command, Command};
     use statements::Statement;
-    use expressions::{Token, Expression};
+    use expressions::Expression::{Number, Ident};
     use memory::Region;
 
     #[test]
@@ -87,19 +87,23 @@ mod test {
                    IResult::Done("",
                                  Command::Simple {
                                      name: String::from("OUTPUT_ARCH"),
-                                     args: vec![vec![
-                                         Expression::Simple(Token::Ident(String::from("msp430")))
-                                         ]],
+                                     args: vec![Ident(String::from("msp430"))],
                                  }));
 
-        assert_eq!(command("LONG(0);"),
+        assert_eq!(command("LONG(0)"),
                    IResult::Done("",
-                                 Command::Statement(Statement::Single(Expression::Call {
-                                                                          func: String::from("LONG"),
-                                                                          args: vec![
-                                                 Expression::Simple(Token::Number(0))
-                                             ],
-                                                                      }))));
+                                 Command::Simple {
+                                     name: String::from("LONG"),
+                                     args: vec![Number(0)],
+                                 }));
+
+        assert_eq!(command(". = 0;"),
+                   IResult::Done("",
+                                 Command::Statement(Statement::Assign{
+                                    symbol: String::from("."),
+                                    operator: String::from("="),
+                                    expr: Number(0)
+                                    })));
 
         match command("MEMORY { ABC : o = 1, l = 2 DEF:o=4,l=8}") {
             IResult::Done("", Command::Memory(v)) => {

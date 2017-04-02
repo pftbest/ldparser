@@ -62,17 +62,15 @@ pub fn file_name<T>(input: T) -> IResult<T, T>
 #[cfg(test)]
 mod test {
     use nom::{IResult, ErrorKind};
-    use symbols::{symbol_name, file_name, SYMBOL_NAME_ERROR};
+    use symbols::{symbol_name, file_name};
 
     #[test]
     fn test_symbol_name() {
         assert_eq!(symbol_name("."), IResult::Done("", "."));
         assert_eq!(symbol_name("A6*"), IResult::Done("*", "A6"));
         assert_eq!(symbol_name(".a_b-c.0 "), IResult::Done(" ", ".a_b-c.0"));
-        assert_eq!(symbol_name("-"),
-                   IResult::Error(ErrorKind::Alt));
-        assert_eq!(symbol_name("5"),
-                   IResult::Error(ErrorKind::Alt));
+        assert_eq!(symbol_name("-"), IResult::Error(ErrorKind::Alt));
+        assert_eq!(symbol_name("5"), IResult::Error(ErrorKind::Alt));
         assert_eq!(symbol_name("\"5\""), IResult::Done("", "5"));
         assert_eq!(file_name("*crtbegin*.o "),
                    IResult::Done(" ", "*crtbegin*.o"));

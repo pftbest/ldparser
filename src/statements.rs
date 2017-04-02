@@ -1,17 +1,14 @@
 use symbols::symbol_name;
-use expressions::{expression, single, Expression};
+use expressions::{expression, value, Expression};
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     Assign {
         symbol: String,
         operator: String,
-        expr: Vec<Expression>,
+        expr: Expression,
     },
-    Provide {
-        symbol: String,
-        expr: Vec<Expression>,
-    },
+    Provide { symbol: String, expr: Expression },
     Single(Expression),
 }
 
@@ -51,7 +48,7 @@ named!(stmt_provide<&str, Statement>, wsc!(do_parse!(
 
 named!(stmt_single<&str, Statement>, map!(
     terminated!(
-        single,
+        value,
         tag_s!(";")
     ),
     |x| Statement::Single(x)
@@ -65,7 +62,7 @@ named!(pub statement<&str, Statement>, alt_complete!(
 mod test {
     use nom::IResult;
     use statements::{statement, Statement};
-    use expressions::{Token, Expression};
+    use expressions::Expression::{BinaryOp, Call, Ident, Number};
 
     #[test]
     fn test_statement() {
@@ -74,21 +71,21 @@ mod test {
                                  Statement::Assign {
                                      symbol: String::from("."),
                                      operator: String::from("="),
-                                     expr: vec![Expression::Call {
-                                                    func: String::from("ALIGN"),
-                                                    args: vec![
-                                                        Expression::Simple(Token::Number(10))
-                                                    ],
-                                                }],
+                                     expr: Call {
+                                         function: String::from("ALIGN"),
+                                         argument: Box::new(Number(10)),
+                                     },
                                  }));
+
         assert_eq!(statement(" PROVIDE ( TEST = . + 1 ) ;"),
                    IResult::Done("",
                                  Statement::Provide {
                                      symbol: String::from("TEST"),
-                                     expr: vec![Expression::Simple(Token::Ident(String::from("."))),
-                                     Expression::Simple(Token::Operator(String::from("+"))),
-                                     Expression::Simple(Token::Number(1))
-                                    ],
+                                     expr: BinaryOp {
+                                         left: Box::new(Ident(String::from("."))),
+                                         operator: String::from("+"),
+                                         right: Box::new(Number(1)),
+                                     },
                                  }));
     }
 }

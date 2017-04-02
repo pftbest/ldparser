@@ -1,5 +1,5 @@
 use symbols::{file_name, symbol_name};
-use expressions::{expression, single, Expression};
+use expressions::{expression, value, Expression};
 use statements::{statement, Statement};
 
 #[derive(Debug, PartialEq)]
@@ -24,9 +24,9 @@ pub enum SectionItem {
 pub struct OutputSection {
     pub name: String,
     pub start: Option<Expression>,
-    pub align: Option<Vec<Expression>>,
+    pub align: Option<Expression>,
     pub no_load: bool,
-    pub load_address: Option<Vec<Expression>>,
+    pub load_address: Option<Expression>,
     pub contents: Vec<SectionItem>,
     pub region: Option<String>,
     pub region_at: Option<String>,
@@ -121,7 +121,7 @@ named!(section_items<&str, Vec<SectionItem>>, many0!(
     section_item
 ));
 
-named!(align<&str, Vec<Expression>>, wsc!(do_parse!(
+named!(align<&str, Expression>, wsc!(do_parse!(
     tag_s!("BLOCK")
     >>
     tag_s!("(")
@@ -133,7 +133,7 @@ named!(align<&str, Vec<Expression>>, wsc!(do_parse!(
     (expr)
 )));
 
-named!(load_addr<&str, Vec<Expression>>, wsc!(do_parse!(
+named!(load_addr<&str, Expression>, wsc!(do_parse!(
     tag_s!("AT")
     >>
     tag_s!("(")
@@ -166,7 +166,7 @@ named!(region_at<&str, String>, wsc!(do_parse!(
 named!(fill<&str, Expression>, wsc!(do_parse!(
     tag_s!("=")
     >>
-    expr: single
+    expr: value
     >>
     (expr)
 )));
@@ -174,7 +174,7 @@ named!(fill<&str, Expression>, wsc!(do_parse!(
 named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     sect_name: alt_complete!(tag_s!("/DISCARD/") | symbol_name)
     >>
-    start: opt!(single)
+    start: opt!(value)
     >>
     align: opt!(align)
     >>
@@ -227,8 +227,8 @@ named!(pub sections<&str, Vec<Section>>, many0!(alt_complete!(
 mod test {
     use nom::IResult;
     use statements::Statement;
-    use expressions::{Token, Expression};
-    use sections::{section_items, output_section, SectionItem, InputSection};
+    use expressions::Expression::Number;
+    use sections::{section_items, SectionItem, InputSection};
 
     #[test]
     fn test_sections() {
@@ -255,8 +255,7 @@ mod test {
                            SectionItem::Statement(Statement::Assign {
                                                       symbol: String::from("."),
                                                       operator: String::from("="),
-                                                      expr:
-                                                          vec![Expression::Simple(Token::Number(0))],
+                                                      expr: Number(0),
                                                   }));
             }
             _ => assert!(false),

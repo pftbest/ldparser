@@ -32,14 +32,14 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_real_file_2() {
-        let text = include_str!("/usr/local/Cellar/none-eabi/6.2017.q1-1/arm-none-eabi/lib/ldscripts/armelf.x");
-        match script(text) {
-            IResult::Done("", v @ _) => {
-                assert_eq!(v.len(), 5);
-            }
-            r @ _ => panic!("{:?}", r),
-        }
-    }
+    // #[test]
+    // fn test_real_file_2() {
+    //     let text = include_str!("/usr/local/Cellar/none-eabi/6.2017.q1-1/arm-none-eabi/lib/ldscripts/armelf.x");
+    //     match script(text) {
+    //         IResult::Done("", v @ _) => {
+    //             assert_eq!(v.len(), 5);
+    //         }
+    //         r @ _ => panic!("{:?}", r),
+    //     }
+    // }
 }

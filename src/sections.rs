@@ -5,10 +5,7 @@ use statements::{statement, Statement};
 #[derive(Debug, PartialEq)]
 pub enum InputSection {
     Section(String),
-    Command {
-        name: String,
-        args: Vec<String>
-    }
+    Command { name: String, args: Vec<String> },
 }
 
 #[derive(Debug, PartialEq)]
@@ -236,14 +233,14 @@ mod test {
                                               InputSection::Section(String::from(".g"))],
                            });
 
-                assert_eq!(v[1], SectionItem::Keep(Box::new(
-                    SectionItem::Sections{
-                    file: String::from("*"),
-                    sections: vec![InputSection::Command{
+                assert_eq!(v[1],
+                           SectionItem::Keep(Box::new(SectionItem::Sections {
+                                                          file: String::from("*"),
+                                                          sections: vec![InputSection::Command{
                         name: String::from("SORT"),
                         args: vec![String::from("c")]
-                    }]
-                })));
+                    }],
+                                                      })));
 
                 assert_eq!(v[2], SectionItem::File(String::from("foo.o")));
 
@@ -257,11 +254,10 @@ mod test {
             _ => assert!(false),
         }
 
-
         let a = r".fini_array     :{}";
         match sections(a) {
             IResult::Done("", v @ _) => {
-                //assert_eq!(v.len(), 8);
+                assert!(v.len() != 0);
             }
             r @ _ => panic!("{:?}", r),
         }

@@ -5,8 +5,10 @@ use statements::{statement, Statement};
 #[derive(Debug, PartialEq)]
 pub enum InputSection {
     Section(String),
-    ExcludeFile(String),
-    Sort(String),
+    Command {
+        name: String,
+        arg: String
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,32 +46,23 @@ named!(input_section_name<&str, InputSection>, map!(
     |x: &str| InputSection::Section(x.into())
 ));
 
-named!(input_section_exclude<&str, InputSection>, wsc!(do_parse!(
-    tag_s!("EXCLUDE_FILE")
+named!(input_section_command<&str, InputSection>, wsc!(do_parse!(
+    name: symbol_name
     >>
     tag_s!("(")
     >>
-    name: file_name
+    arg: file_name
     >>
     tag_s!(")")
     >>
-    (InputSection::ExcludeFile(name.into()))
-)));
-
-named!(input_section_sort<&str, InputSection>, wsc!(do_parse!(
-    tag_s!("SORT")
-    >>
-    tag_s!("(")
-    >>
-    name: file_name
-    >>
-    tag_s!(")")
-    >>
-    (InputSection::Sort(name.into()))
+    (InputSection::Command{
+        name: name.into(),
+        arg: arg.into()
+    })
 )));
 
 named!(input_section<&str, InputSection>, alt_complete!(
-    input_section_sort | input_section_exclude | input_section_name
+    input_section_command | input_section_name
 ));
 
 named!(section_item_sections<&str, SectionItem>, wsc!(do_parse!(
@@ -246,7 +239,10 @@ mod test {
                 assert_eq!(v[1], SectionItem::Keep(Box::new(
                     SectionItem::Sections{
                     file: String::from("*"),
-                    sections: vec![InputSection::Sort(String::from("c"))]
+                    sections: vec![InputSection::Command{
+                        name: String::from("SORT"),
+                        arg: String::from("c")
+                    }]
                 })));
 
                 assert_eq!(v[2], SectionItem::File(String::from("foo.o")));

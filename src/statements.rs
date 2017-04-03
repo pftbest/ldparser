@@ -1,5 +1,5 @@
 use symbols::symbol_name;
-use expressions::{expression, value, Expression};
+use expressions::{expression, Expression};
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
@@ -9,7 +9,7 @@ pub enum Statement {
         expr: Expression,
     },
     Provide { symbol: String, expr: Expression },
-    Single(Expression),
+    Command { name: String, args: Expression },
 }
 
 named!(assign_operator<&str, &str>, alt_complete!(
@@ -46,16 +46,22 @@ named!(stmt_provide<&str, Statement>, wsc!(do_parse!(
     (Statement::Provide{symbol: symbol.into(), expr: expr})
 )));
 
-named!(stmt_single<&str, Statement>, map!(
-    terminated!(
-        value,
-        tag_s!(";")
-    ),
-    |x| Statement::Single(x)
-));
+named!(stmt_command<&str, Statement>, wsc!(do_parse!(
+    name: symbol_name
+    >>
+    tag_s!("(")
+    >>
+    expr: expression
+    >>
+    tag_s!(")")
+    >>
+    opt!(complete!(tag_s!(";")))
+    >>
+    (Statement::Command{name: name.into(), args: expr})
+)));
 
 named!(pub statement<&str, Statement>, alt_complete!(
-    stmt_assign | stmt_provide | stmt_single
+    stmt_assign | stmt_provide | stmt_command
 ));
 
 #[cfg(test)]
@@ -86,6 +92,12 @@ mod test {
                                          operator: String::from("+"),
                                          right: Box::new(Number(1)),
                                      },
+                                 }));
+        assert_eq!(statement("OUTPUT_ARCH(msp430)"),
+                   IResult::Done("",
+                                 Statement::Command {
+                                     name: String::from("OUTPUT_ARCH"),
+                                     args: Ident(String::from("msp430")),
                                  }));
     }
 }

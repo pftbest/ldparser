@@ -1,34 +1,15 @@
 use symbols::symbol_name;
-use expressions::{expression, Expression};
 use statements::{statement, Statement};
 use memory::{regions, Region};
 use sections::{sections, Section};
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    Simple { name: String, args: Vec<Expression> },
-    Memory(Vec<Region>),
-    Statement(Statement),
     Include(String),
+    Memory(Vec<Region>),
     Sections(Vec<Section>),
+    Statement(Statement),
 }
-
-named!(cmd_simple<&str, Command>, wsc!(do_parse!(
-    name: symbol_name
-    >>
-    tag_s!("(")
-    >>
-    args: separated_nonempty_list!(
-        tag_s!(","),
-        expression
-    )
-    >>
-    tag_s!(")")
-    >>
-    opt!(tag_s!(";"))
-    >>
-    (Command::Simple{name: name.into(), args: args})
-)));
 
 named!(cmd_memory<&str, Command>, wsc!(do_parse!(
     tag_s!("MEMORY")
@@ -68,7 +49,7 @@ named!(cmd_include<&str, Command>, wsc!(do_parse!(
 )));
 
 named!(command<&str, Command>, alt_complete!(
-    cmd_memory | cmd_sections | cmd_include | cmd_simple | cmd_statement
+    cmd_memory | cmd_sections | cmd_include | cmd_statement
 ));
 
 named!(pub script<&str, Vec<Command>>, many0!(
@@ -87,24 +68,24 @@ mod test {
     fn test_command() {
         assert_eq!(command("OUTPUT_ARCH(msp430)"),
                    IResult::Done("",
-                                 Command::Simple {
-                                     name: String::from("OUTPUT_ARCH"),
-                                     args: vec![Ident(String::from("msp430"))],
-                                 }));
+                                 Command::Statement(Statement::Command {
+                                                        name: String::from("OUTPUT_ARCH"),
+                                                        args: Ident(String::from("msp430")),
+                                                    })));
 
         assert_eq!(command("LONG(0);"),
                    IResult::Done("",
-                                 Command::Simple {
-                                     name: String::from("LONG"),
-                                     args: vec![Number(0)],
-                                 }));
+                                 Command::Statement(Statement::Command {
+                                                        name: String::from("LONG"),
+                                                        args: Number(0),
+                                                    })));
 
         assert_eq!(command("PROVIDE(. = 0);"),
                    IResult::Done("",
-                                 Command::Statement(Statement::Provide{
-                                    symbol: String::from("."),
-                                    expr: Number(0)
-                                    })));
+                                 Command::Statement(Statement::Provide {
+                                                        symbol: String::from("."),
+                                                        expr: Number(0),
+                                                    })));
 
         match command("MEMORY { ABC : o = 1, l = 2 DEF:o=4,l=8}") {
             IResult::Done("", Command::Memory(v)) => {

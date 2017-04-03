@@ -23,7 +23,7 @@ mod test {
 
     #[test]
     fn test_real_file_1() {
-        let text = include_str!("/Users/vadzim/Downloads/rust/rust_on_msp/ldscripts/cc430f5137.ld");
+        let text = include_str!("/home/user/Public/rust_on_msp/ldscripts/msp430g2553.ld");
         match script(text) {
             IResult::Done("", v @ _) => {
                 assert_eq!(v.len(), 5);

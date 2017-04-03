@@ -32,21 +32,20 @@ mod test {
         }
     }
 
-    // #[test]
-    // fn test_real_file_2() {
-    //     let text = include_str!("/usr/arm-none-eabi/lib/ldscripts/armelf.x");
-    //     match script(text) {
-    //         IResult::Done("", v @ _) => {
-    //             assert_eq!(v.len(), 5);
-    //         }
-    //         r @ _ => panic!("{:?}", r),
-    //     }
-    // }
+    #[test]
+    fn test_real_file_2() {
+        let text = include_str!("/usr/arm-none-eabi/lib/ldscripts/armelf.x");
+        match script(text) {
+            IResult::Done("", v @ _) => {
+                assert_eq!(v.len(), 5);
+            }
+            r @ _ => panic!("{:?}", r),
+        }
+    }
 
     #[test]
     fn test_part() {
         let text = r#"
-
 /* Default linker script, for normal executables */
 /* Copyright (C) 2014-2017 Free Software Foundation, Inc.
    Copying and distribution of this script, with or without modification,
@@ -59,19 +58,12 @@ ENTRY(_start)
 SEARCH_DIR("=/tmp/jenkins-GCC-6-buildandreg-104_20170216_1487268972/install-native/arm-none-eabi/lib"); SEARCH_DIR("=/usr/local/lib"); SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib");
 SECTIONS
 {
-  /* Read-only sections, merged into text segment: */
-  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x8000)); . = SEGMENT_START("text-segment", 0x8000);
-  .interp         : { *(.interp) }
-  .note.gnu.build-id : { *(.note.gnu.build-id) }
-  .hash           : { *(.hash) }
-  .gnu.hash       : { *(.gnu.hash) }
-  .dynsym         : { *(.dynsym) }
-  .dynstr         : { *(.dynstr) }
-  .gnu.version    : { *(.gnu.version) }
-  .gnu.version_d  : { *(.gnu.version_d) }
-  .gnu.version_r  : { *(.gnu.version_r) }
-  .rel.init       : { *(.rel.init) }
-  .rela.init      : { *(.rela.init) }
+  .fini_array     :
+  {
+    KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  }
+
 }
     "#;
 

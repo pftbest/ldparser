@@ -7,7 +7,7 @@ pub enum InputSection {
     Section(String),
     Command {
         name: String,
-        arg: String
+        args: Vec<String>
     }
 }
 
@@ -51,13 +51,13 @@ named!(input_section_command<&str, InputSection>, wsc!(do_parse!(
     >>
     tag_s!("(")
     >>
-    arg: file_name
+    args: wsc!(many1!(file_name))
     >>
     tag_s!(")")
     >>
     (InputSection::Command{
         name: name.into(),
-        arg: arg.into()
+        args: args.iter().map(|x| String::from(*x)).collect::<Vec<_>>()
     })
 )));
 
@@ -70,11 +70,11 @@ named!(section_item_sections<&str, SectionItem>, wsc!(do_parse!(
     >>
     tag_s!("(")
     >>
-    sections: many1!(input_section)
+    sections: wsc!(many1!(input_section))
     >>
     tag_s!(")")
-    >>
-    opt!(tag_s!(";"))
+    // >>
+    // opt!(complete!(tag_s!(";")))
     >>
     (SectionItem::Sections{
         file: name.into(),
@@ -95,8 +95,8 @@ named!(section_item_keep<&str, SectionItem>, wsc!(do_parse!(
     item: section_item
     >>
     tag_s!(")")
-    >>
-    opt!(tag_s!(";"))
+    // >>
+    // opt!(tag_s!(";"))
     >>
     (SectionItem::Keep(Box::new(item)))
 )));
@@ -221,11 +221,11 @@ mod test {
     use nom::IResult;
     use statements::Statement;
     use expressions::Expression::Number;
-    use sections::{section_items, SectionItem, InputSection};
+    use sections::{section_items, sections, SectionItem, InputSection};
 
     #[test]
     fn test_sections() {
-        match section_items(" a ( b* .g ) ; KEEP ( * ( SORT ( c ) ) ) foo.o . = 0 ; ") {
+        match section_items(" a ( b* .g )  KEEP ( * ( SORT ( c ) ) ) foo.o . = 0 ; ") {
             IResult::Done("", v) => {
                 assert_eq!(v.len(), 4);
 
@@ -241,7 +241,7 @@ mod test {
                     file: String::from("*"),
                     sections: vec![InputSection::Command{
                         name: String::from("SORT"),
-                        arg: String::from("c")
+                        args: vec![String::from("c")]
                     }]
                 })));
 
@@ -255,6 +255,15 @@ mod test {
                                                   }));
             }
             _ => assert!(false),
+        }
+
+
+        let a = r".fini_array     :{}";
+        match sections(a) {
+            IResult::Done("", v @ _) => {
+                //assert_eq!(v.len(), 8);
+            }
+            r @ _ => panic!("{:?}", r),
         }
     }
 }

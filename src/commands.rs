@@ -70,14 +70,14 @@ mod test {
                    IResult::Done("",
                                  Command::Statement(Statement::Command {
                                                         name: String::from("OUTPUT_ARCH"),
-                                                        args: Ident(String::from("msp430")),
+                                                        args: vec![Ident(String::from("msp430"))],
                                                     })));
 
         assert_eq!(command("LONG(0);"),
                    IResult::Done("",
                                  Command::Statement(Statement::Command {
                                                         name: String::from("LONG"),
-                                                        args: Number(0),
+                                                        args: vec![Number(0)],
                                                     })));
 
         assert_eq!(command("PROVIDE(. = 0);"),

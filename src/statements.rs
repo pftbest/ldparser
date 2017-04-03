@@ -9,7 +9,7 @@ pub enum Statement {
         expr: Expression,
     },
     Provide { symbol: String, expr: Expression },
-    Command { name: String, args: Expression },
+    Command { name: String, args: Vec<Expression> },
 }
 
 named!(assign_operator<&str, &str>, alt_complete!(
@@ -51,13 +51,16 @@ named!(stmt_command<&str, Statement>, wsc!(do_parse!(
     >>
     tag_s!("(")
     >>
-    expr: expression
+    args: separated_list!(
+        tag_s!(","),
+        expression
+    )
     >>
     tag_s!(")")
     >>
     opt!(complete!(tag_s!(";")))
     >>
-    (Statement::Command{name: name.into(), args: expr})
+    (Statement::Command{name: name.into(), args: args})
 )));
 
 named!(pub statement<&str, Statement>, alt_complete!(
@@ -79,7 +82,7 @@ mod test {
                                      operator: String::from("="),
                                      expr: Call {
                                          function: String::from("ALIGN"),
-                                         argument: Box::new(Number(10)),
+                                         args: vec![Number(10)],
                                      },
                                  }));
 
@@ -93,11 +96,12 @@ mod test {
                                          right: Box::new(Number(1)),
                                      },
                                  }));
-        assert_eq!(statement("OUTPUT_ARCH(msp430)"),
+        assert_eq!(statement("OUTPUT_ARCH(msp430, \"hello\")"),
                    IResult::Done("",
                                  Statement::Command {
                                      name: String::from("OUTPUT_ARCH"),
-                                     args: Ident(String::from("msp430")),
+                                     args: vec![Ident(String::from("msp430")),
+                                                Ident(String::from("hello"))],
                                  }));
     }
 }

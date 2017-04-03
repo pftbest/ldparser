@@ -8,7 +8,7 @@ pub enum Expression {
     Nested(Box<Expression>),
     Call {
         function: String,
-        argument: Box<Expression>,
+        args: Vec<Expression>,
     },
     BinaryOp {
         left: Box<Expression>,
@@ -46,13 +46,16 @@ named!(value_call<&str, Expression>, ws!(do_parse!(
     >>
     tag_s!("(")
     >>
-    arg: expression
+    args: separated_list!(
+        tag_s!(","),
+        expression
+    )
     >>
     tag_s!(")")
     >>
     (Expression::Call{
         function: func.into(),
-        argument: Box::new(arg)
+        args: args
     })
 )));
 
@@ -112,27 +115,25 @@ mod test {
 
     #[test]
     fn test_expression() {
-        assert_eq!(
-            expression("a + b ( . * d) - 5K"),
-            IResult::Done("",
-                BinaryOp{
-                    left: Box::new(Ident(String::from("a"))),
-                    operator: String::from("+"),
-                    right: Box::new(BinaryOp{
-                        left: Box::new(Call{
-                            function: String::from("b"),
-                            argument: Box::new(BinaryOp{
+        assert_eq!(expression("a + b ( . * d) - 5K"),
+                   IResult::Done("",
+                                 BinaryOp {
+                                     left: Box::new(Ident(String::from("a"))),
+                                     operator: String::from("+"),
+                                     right: Box::new(BinaryOp {
+                                                         left: Box::new(Call {
+                                                                            function:
+                                                                                String::from("b"),
+                                                                            args: vec![BinaryOp{
                                 left: Box::new(Ident(String::from("."))),
                                 operator: String::from("*"),
                                 right: Box::new(Ident(String::from("d"))),
-                            })
-                        }),
-                        operator: String::from("-"),
-                        right: Box::new(Number(5120))
-                    })
-                }
-            )
-        );
+                            }],
+                                                                        }),
+                                                         operator: String::from("-"),
+                                                         right: Box::new(Number(5120)),
+                                                     }),
+                                 }));
 
         assert_eq!(expression(". != 0 ? 32 / 8 : 1"),
                    IResult::Done("",

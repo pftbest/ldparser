@@ -108,48 +108,5 @@ mod test {
 
         assert_eq!(command("INCLUDE abc.ld"),
                    IResult::Done("", Command::Include(String::from("abc.ld"))));
-
-        let test_sections = r"
-SECTIONS
-{
-  .stack (ORIGIN (RAM) + LENGTH(RAM)) :
-  {
-    PROVIDE (__stack = .);
-    *(.stack)
-  } = (0xff)
-
-  .rodata :
-  {
-    . = ALIGN(2);
-    *(.plt)
-    *(.rodata .rodata.* .gnu.linkonce.r.* .const .const:*)
-    *(.rodata1)
-    KEEP (*(.gcc_except_table)) *(.gcc_except_table.*)
-    PROVIDE (__preinit_array_start = .);
-    KEEP (*(.preinit_array))
-    PROVIDE (__preinit_array_end = .);
-    PROVIDE (__init_array_start = .);
-    KEEP (*(SORT(.init_array.*)))
-    KEEP (*(.init_array))
-    PROVIDE (__init_array_end = .);
-    PROVIDE (__fini_array_start = .);
-    KEEP (*(.fini_array))
-    KEEP (*(SORT(.fini_array.*)))
-    PROVIDE (__fini_array_end = .);
-  } > ROM
-
-  /* SGI/MIPS DWARF 2 extensions */
-  .debug_weaknames 0 : { *(.debug_weaknames) }
-  .debug_funcnames 0 : { *(.debug_funcnames) }
-  .debug_typenames 0 : { *(.debug_typenames) }
-  .debug_varnames  0 : { *(.debug_varnames) }
-  /DISCARD/ : { *(.note.GNU-stack) }
-}        ";
-        match command(test_sections) {
-            IResult::Done("", Command::Sections(v @ _)) => {
-                assert_eq!(v.len(), 7);
-            }
-            r @ _ => panic!("{:?}", r),
-        }
     }
 }

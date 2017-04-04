@@ -26,6 +26,7 @@ pub struct OutputSection {
     pub align: Option<Expression>,
     pub no_load: bool,
     pub load_address: Option<Expression>,
+    pub attribute: Option<String>,
     pub contents: Vec<SectionItem>,
     pub region: Option<String>,
     pub region_at: Option<String>,
@@ -161,6 +162,13 @@ named!(fill<&str, Expression>, wsc!(do_parse!(
     (expr)
 )));
 
+named!(section_attribute<&str, String>, map!(
+    alt_complete!(
+        tag_s!("ONLY_IF_RW") | tag_s!("ONLY_IF_RO")
+    ),
+    |x: &str| x.into()
+));
+
 named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     sect_name: alt_complete!(tag_s!("/DISCARD/") | symbol_name)
     >>
@@ -173,6 +181,8 @@ named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     tag_s!(":")
     >>
     load_address: opt!(load_addr)
+    >>
+    attribute: opt!(section_attribute)
     >>
     tag_s!("{")
     >>
@@ -192,6 +202,7 @@ named!(output_section<&str, OutputSection>, wsc!(do_parse!(
         align: align,
         no_load: no_load.is_some(),
         load_address: load_address,
+        attribute: attribute,
         contents: items,
         region: region,
         region_at: region_at,

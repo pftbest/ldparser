@@ -5,8 +5,7 @@ use statements::{statement, Statement};
 #[derive(Debug, PartialEq)]
 pub enum InputSection {
     Section(String),
-    ExcludeFile(String),
-    Sort(String),
+    Command { name: String, args: Vec<String> },
 }
 
 #[derive(Debug, PartialEq)]
@@ -27,6 +26,7 @@ pub struct OutputSection {
     pub align: Option<Expression>,
     pub no_load: bool,
     pub load_address: Option<Expression>,
+    pub attribute: Option<String>,
     pub contents: Vec<SectionItem>,
     pub region: Option<String>,
     pub region_at: Option<String>,
@@ -44,32 +44,23 @@ named!(input_section_name<&str, InputSection>, map!(
     |x: &str| InputSection::Section(x.into())
 ));
 
-named!(input_section_exclude<&str, InputSection>, wsc!(do_parse!(
-    tag_s!("EXCLUDE_FILE")
+named!(input_section_command<&str, InputSection>, wsc!(do_parse!(
+    name: symbol_name
     >>
     tag_s!("(")
     >>
-    name: file_name
+    args: wsc!(many1!(file_name))
     >>
     tag_s!(")")
     >>
-    (InputSection::ExcludeFile(name.into()))
-)));
-
-named!(input_section_sort<&str, InputSection>, wsc!(do_parse!(
-    tag_s!("SORT")
-    >>
-    tag_s!("(")
-    >>
-    name: file_name
-    >>
-    tag_s!(")")
-    >>
-    (InputSection::Sort(name.into()))
+    (InputSection::Command{
+        name: name.into(),
+        args: args.iter().map(|x| String::from(*x)).collect::<Vec<_>>()
+    })
 )));
 
 named!(input_section<&str, InputSection>, alt_complete!(
-    input_section_sort | input_section_exclude | input_section_name
+    input_section_command | input_section_name
 ));
 
 named!(section_item_sections<&str, SectionItem>, wsc!(do_parse!(
@@ -77,11 +68,11 @@ named!(section_item_sections<&str, SectionItem>, wsc!(do_parse!(
     >>
     tag_s!("(")
     >>
-    sections: many1!(input_section)
+    sections: wsc!(many1!(input_section))
     >>
     tag_s!(")")
     >>
-    opt!(tag_s!(";"))
+    opt_complete!(tag_s!(";"))
     >>
     (SectionItem::Sections{
         file: name.into(),
@@ -103,7 +94,7 @@ named!(section_item_keep<&str, SectionItem>, wsc!(do_parse!(
     >>
     tag_s!(")")
     >>
-    opt!(tag_s!(";"))
+    opt_complete!(tag_s!(";"))
     >>
     (SectionItem::Keep(Box::new(item)))
 )));
@@ -171,6 +162,13 @@ named!(fill<&str, Expression>, wsc!(do_parse!(
     (expr)
 )));
 
+named!(section_attribute<&str, String>, map!(
+    alt_complete!(
+        tag_s!("ONLY_IF_RW") | tag_s!("ONLY_IF_RO")
+    ),
+    |x: &str| x.into()
+));
+
 named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     sect_name: alt_complete!(tag_s!("/DISCARD/") | symbol_name)
     >>
@@ -184,17 +182,19 @@ named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     >>
     load_address: opt!(load_addr)
     >>
+    attribute: opt!(section_attribute)
+    >>
     tag_s!("{")
     >>
     items: section_items
     >>
     tag_s!("}")
     >>
-    region: opt!(region)
+    region: opt_complete!(region)
     >>
-    region_at: opt!(region_at)
+    region_at: opt_complete!(region_at)
     >>
-    fill: opt!(fill)
+    fill: opt_complete!(fill)
     >>
     (OutputSection{
         name: sect_name.into(),
@@ -202,6 +202,7 @@ named!(output_section<&str, OutputSection>, wsc!(do_parse!(
         align: align,
         no_load: no_load.is_some(),
         load_address: load_address,
+        attribute: attribute,
         contents: items,
         region: region,
         region_at: region_at,
@@ -219,7 +220,7 @@ named!(sect_definition<&str, Section>, map!(
     |x| Section::Definition(x)
 ));
 
-named!(pub sections<&str, Vec<Section>>, many0!(alt_complete!(
+named!(pub sections<&str, Vec<Section>>, many1!(alt_complete!(
     sect_definition | sect_statement
 )));
 
@@ -228,11 +229,11 @@ mod test {
     use nom::IResult;
     use statements::Statement;
     use expressions::Expression::Number;
-    use sections::{section_items, SectionItem, InputSection};
+    use sections::{section_items, sections, SectionItem, InputSection};
 
     #[test]
     fn test_sections() {
-        match section_items(" a ( b* .g ) ; KEEP ( * ( SORT ( c ) ) ) foo.o . = 0 ; ") {
+        match section_items(" a ( b* .g )  KEEP ( * ( SORT ( c ) ) ) foo.o . = 0 ; ") {
             IResult::Done("", v) => {
                 assert_eq!(v.len(), 4);
 
@@ -243,11 +244,14 @@ mod test {
                                               InputSection::Section(String::from(".g"))],
                            });
 
-                assert_eq!(v[1], SectionItem::Keep(Box::new(
-                    SectionItem::Sections{
-                    file: String::from("*"),
-                    sections: vec![InputSection::Sort(String::from("c"))]
-                })));
+                assert_eq!(v[1],
+                           SectionItem::Keep(Box::new(SectionItem::Sections {
+                                                          file: String::from("*"),
+                                                          sections: vec![InputSection::Command{
+                        name: String::from("SORT"),
+                        args: vec![String::from("c")]
+                    }],
+                                                      })));
 
                 assert_eq!(v[2], SectionItem::File(String::from("foo.o")));
 
@@ -259,6 +263,14 @@ mod test {
                                                   }));
             }
             _ => assert!(false),
+        }
+
+        let a = r".fini_array     :{}";
+        match sections(a) {
+            IResult::Done("", v @ _) => {
+                assert!(v.len() != 0);
+            }
+            r @ _ => panic!("{:?}", r),
         }
     }
 }

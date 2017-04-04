@@ -8,7 +8,7 @@ pub enum Expression {
     Nested(Box<Expression>),
     Call {
         function: String,
-        argument: Box<Expression>,
+        args: Vec<Expression>,
     },
     BinaryOp {
         left: Box<Expression>,
@@ -33,7 +33,7 @@ named!(value_number<&str, Expression>, map!(
 ));
 
 named!(value_nested<&str, Expression>, map!(
-    ws!(delimited!(
+    wsc!(delimited!(
         tag_s!("("),
         expression,
         tag_s!(")")
@@ -41,18 +41,21 @@ named!(value_nested<&str, Expression>, map!(
     |x| Expression::Nested(Box::new(x))
 ));
 
-named!(value_call<&str, Expression>, ws!(do_parse!(
+named!(value_call<&str, Expression>, wsc!(do_parse!(
     func: symbol_name
     >>
     tag_s!("(")
     >>
-    arg: expression
+    args: separated_list!(
+        tag_s!(","),
+        expression
+    )
     >>
     tag_s!(")")
     >>
     (Expression::Call{
         function: func.into(),
-        argument: Box::new(arg)
+        args: args
     })
 )));
 
@@ -64,7 +67,7 @@ named!(binary_operator<&str, &str>, alt_complete!(
     tag_s!("&") | tag_s!("+") | tag_s!("-") | tag_s!("*") | tag_s!("/") | tag_s!("!=")
 ));
 
-named!(expr_binary_op<&str, Expression>, ws!(do_parse!(
+named!(expr_binary_op<&str, Expression>, wsc!(do_parse!(
     left: value
     >>
     op: binary_operator
@@ -82,7 +85,7 @@ named!(binary_or_value<&str, Expression>, alt_complete!(
     expr_binary_op | value
 ));
 
-named!(expr_ternary_op<&str, Expression>, ws!(do_parse!(
+named!(expr_ternary_op<&str, Expression>, wsc!(do_parse!(
     cond: binary_or_value
     >>
     tag_s!("?")
@@ -112,27 +115,25 @@ mod test {
 
     #[test]
     fn test_expression() {
-        assert_eq!(
-            expression("a + b ( . * d) - 5K"),
-            IResult::Done("",
-                BinaryOp{
-                    left: Box::new(Ident(String::from("a"))),
-                    operator: String::from("+"),
-                    right: Box::new(BinaryOp{
-                        left: Box::new(Call{
-                            function: String::from("b"),
-                            argument: Box::new(BinaryOp{
+        assert_eq!(expression("a + b ( . * d) - 5K"),
+                   IResult::Done("",
+                                 BinaryOp {
+                                     left: Box::new(Ident(String::from("a"))),
+                                     operator: String::from("+"),
+                                     right: Box::new(BinaryOp {
+                                                         left: Box::new(Call {
+                                                                            function:
+                                                                                String::from("b"),
+                                                                            args: vec![BinaryOp{
                                 left: Box::new(Ident(String::from("."))),
                                 operator: String::from("*"),
                                 right: Box::new(Ident(String::from("d"))),
-                            })
-                        }),
-                        operator: String::from("-"),
-                        right: Box::new(Number(5120))
-                    })
-                }
-            )
-        );
+                            }],
+                                                                        }),
+                                                         operator: String::from("-"),
+                                                         right: Box::new(Number(5120)),
+                                                     }),
+                                 }));
 
         assert_eq!(expression(". != 0 ? 32 / 8 : 1"),
                    IResult::Done("",

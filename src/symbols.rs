@@ -37,7 +37,7 @@ fn identifier<T>(input: T) -> IResult<T, T>
     IResult::Done(input.slice(input_length..), input)
 }
 
-/// Recognizes file name pattern. May contain '*' and ':'.
+/// Recognizes file name pattern. May contain '*', '?' and ':'.
 pub fn file_name<T>(input: T) -> IResult<T, T>
     where T: Slice<Range<usize>> + Slice<RangeFrom<usize>> + Slice<RangeTo<usize>>,
           T: InputIter + InputLength
@@ -48,7 +48,8 @@ pub fn file_name<T>(input: T) -> IResult<T, T>
     }
     for (idx, item) in input.iter_indices() {
         let c = item.as_char();
-        if !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == '*' || c == ':') {
+        if !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == '*' || c == ':' ||
+             c == '?') {
             if idx == 0 {
                 return IResult::Error(error_position!(ErrorKind::Custom(FILE_NAME_ERROR), input));
             } else {

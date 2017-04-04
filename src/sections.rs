@@ -70,8 +70,8 @@ named!(section_item_sections<&str, SectionItem>, wsc!(do_parse!(
     sections: wsc!(many1!(input_section))
     >>
     tag_s!(")")
-    // >>
-    // opt!(complete!(tag_s!(";")))
+    >>
+    opt!(complete!(tag_s!(";")))
     >>
     (SectionItem::Sections{
         file: name.into(),
@@ -92,8 +92,8 @@ named!(section_item_keep<&str, SectionItem>, wsc!(do_parse!(
     item: section_item
     >>
     tag_s!(")")
-    // >>
-    // opt!(tag_s!(";"))
+    >>
+    opt!(complete!(tag_s!(";")))
     >>
     (SectionItem::Keep(Box::new(item)))
 )));
@@ -180,11 +180,11 @@ named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     >>
     tag_s!("}")
     >>
-    region: opt!(region)
+    region: opt!(complete!(region))
     >>
-    region_at: opt!(region_at)
+    region_at: opt!(complete!(region_at))
     >>
-    fill: opt!(fill)
+    fill: opt!(complete!(fill))
     >>
     (OutputSection{
         name: sect_name.into(),
@@ -209,7 +209,7 @@ named!(sect_definition<&str, Section>, map!(
     |x| Section::Definition(x)
 ));
 
-named!(pub sections<&str, Vec<Section>>, many0!(alt_complete!(
+named!(pub sections<&str, Vec<Section>>, many1!(alt_complete!(
     sect_definition | sect_statement
 )));
 

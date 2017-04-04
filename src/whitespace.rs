@@ -1,6 +1,6 @@
 use nom::multispace;
 
-named!(pub comment<&str, &str>, delimited!(
+named!(comment<&str, &str>, delimited!(
     tag_s!("/*"),
     take_until_s!("*/"),
     tag_s!("*/")
@@ -9,15 +9,6 @@ named!(pub comment<&str, &str>, delimited!(
 named!(pub space_or_comment<&str, Vec<&str>>, many0!(
     alt!(multispace | comment)
 ));
-
-/// Transforms a parser to automatically consume whitespace and comments
-/// between each token.
-macro_rules! wsc(
-    ($i:expr, $($args:tt)*) => ({
-        use $crate::whitespace::space_or_comment;
-        sep!($i, space_or_comment, $($args)*)
-    })
-);
 
 #[cfg(test)]
 mod test {

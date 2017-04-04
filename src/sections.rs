@@ -71,7 +71,7 @@ named!(section_item_sections<&str, SectionItem>, wsc!(do_parse!(
     >>
     tag_s!(")")
     >>
-    opt!(complete!(tag_s!(";")))
+    opt_complete!(tag_s!(";"))
     >>
     (SectionItem::Sections{
         file: name.into(),
@@ -93,7 +93,7 @@ named!(section_item_keep<&str, SectionItem>, wsc!(do_parse!(
     >>
     tag_s!(")")
     >>
-    opt!(complete!(tag_s!(";")))
+    opt_complete!(tag_s!(";"))
     >>
     (SectionItem::Keep(Box::new(item)))
 )));
@@ -180,11 +180,11 @@ named!(output_section<&str, OutputSection>, wsc!(do_parse!(
     >>
     tag_s!("}")
     >>
-    region: opt!(complete!(region))
+    region: opt_complete!(region)
     >>
-    region_at: opt!(complete!(region_at))
+    region_at: opt_complete!(region_at)
     >>
-    fill: opt!(complete!(fill))
+    fill: opt_complete!(fill)
     >>
     (OutputSection{
         name: sect_name.into(),

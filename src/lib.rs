@@ -2,8 +2,9 @@
 extern crate nom;
 
 #[macro_use]
-mod whitespace;
+mod macros;
 
+mod whitespace;
 mod numbers;
 mod symbols;
 mod expressions;

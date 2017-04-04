@@ -58,7 +58,7 @@ named!(stmt_command<&str, Statement>, wsc!(do_parse!(
     >>
     tag_s!(")")
     >>
-    opt!(complete!(tag_s!(";")))
+    opt_complete!(tag_s!(";"))
     >>
     (Statement::Command{name: name.into(), args: args})
 )));

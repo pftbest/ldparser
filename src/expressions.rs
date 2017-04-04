@@ -33,7 +33,7 @@ named!(value_number<&str, Expression>, map!(
 ));
 
 named!(value_nested<&str, Expression>, map!(
-    ws!(delimited!(
+    wsc!(delimited!(
         tag_s!("("),
         expression,
         tag_s!(")")
@@ -41,7 +41,7 @@ named!(value_nested<&str, Expression>, map!(
     |x| Expression::Nested(Box::new(x))
 ));
 
-named!(value_call<&str, Expression>, ws!(do_parse!(
+named!(value_call<&str, Expression>, wsc!(do_parse!(
     func: symbol_name
     >>
     tag_s!("(")
@@ -67,7 +67,7 @@ named!(binary_operator<&str, &str>, alt_complete!(
     tag_s!("&") | tag_s!("+") | tag_s!("-") | tag_s!("*") | tag_s!("/") | tag_s!("!=")
 ));
 
-named!(expr_binary_op<&str, Expression>, ws!(do_parse!(
+named!(expr_binary_op<&str, Expression>, wsc!(do_parse!(
     left: value
     >>
     op: binary_operator
@@ -85,7 +85,7 @@ named!(binary_or_value<&str, Expression>, alt_complete!(
     expr_binary_op | value
 ));
 
-named!(expr_ternary_op<&str, Expression>, ws!(do_parse!(
+named!(expr_ternary_op<&str, Expression>, wsc!(do_parse!(
     cond: binary_or_value
     >>
     tag_s!("?")

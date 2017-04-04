@@ -9,6 +9,7 @@ pub enum Statement {
         expr: Expression,
     },
     Provide { symbol: String, expr: Expression },
+    ProvideHidden { symbol: String, expr: Expression },
     Command { name: String, args: Vec<Expression> },
 }
 
@@ -46,6 +47,24 @@ named!(stmt_provide<&str, Statement>, wsc!(do_parse!(
     (Statement::Provide{symbol: symbol.into(), expr: expr})
 )));
 
+named!(stmt_provide_hidden<&str, Statement>, wsc!(do_parse!(
+    tag_s!("PROVIDE_HIDDEN")
+    >>
+    tag_s!("(")
+    >>
+    symbol: symbol_name
+    >>
+    tag_s!("=")
+    >>
+    expr: expression
+    >>
+    tag_s!(")")
+    >>
+    tag_s!(";")
+    >>
+    (Statement::ProvideHidden{symbol: symbol.into(), expr: expr})
+)));
+
 named!(stmt_command<&str, Statement>, wsc!(do_parse!(
     name: symbol_name
     >>
@@ -64,7 +83,7 @@ named!(stmt_command<&str, Statement>, wsc!(do_parse!(
 )));
 
 named!(pub statement<&str, Statement>, alt_complete!(
-    stmt_assign | stmt_provide | stmt_command
+    stmt_assign | stmt_provide | stmt_provide_hidden | stmt_command
 ));
 
 #[cfg(test)]

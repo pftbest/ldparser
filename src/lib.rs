@@ -16,6 +16,17 @@ mod commands;
 #[cfg(test)]
 mod tests;
 
-pub fn parse(script: &str) {
-    commands::script(script).unwrap();
+pub use commands::Command;
+pub use sections::{Section, InputSection, OutputSection, SectionItem};
+pub use memory::Region;
+pub use statements::Statement;
+pub use expressions::Expression;
+
+use nom::IResult;
+
+pub fn parse(text: &str) -> Result<Vec<Command>, String> {
+    match commands::script(text) {
+        IResult::Done("", v) => Ok(v),
+        r @ _ => Err(format!("Parsing failed: {:?}", r)),
+    }
 }

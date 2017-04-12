@@ -25,22 +25,22 @@ named!(number<u64>,
 
 #[derive(Debug, PartialEq)]
 pub enum UnaryOperator {
-    Not,
+    LogicNot,
     Minus,
-    Negate,
+    BitwiseNot,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum BinaryOperator {
     LogicOr,
     LogicAnd,
-    Or,
-    And,
+    BitwiseOr,
+    BitwiseAnd,
     Equals,
     NotEquals,
+    Lesser,
     Greater,
-    Less,
-    LessOrEquals,
+    LesserOrEquals,
     GreaterOrEquals,
     ShiftRight,
     ShiftLeft,
@@ -52,26 +52,26 @@ pub enum BinaryOperator {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Expression<'a> {
-    Ident(&'a str),
+pub enum Expression {
+    Ident(String),
     Number(u64),
     Call {
-        function: &'a str,
-        args: Vec<Expression<'a>>,
+        function: String,
+        arguments: Vec<Expression>,
     },
     UnaryOp {
         operator: UnaryOperator,
-        right: Box<Expression<'a>>,
+        right: Box<Expression>,
     },
     BinaryOp {
-        left: Box<Expression<'a>>,
+        left: Box<Expression>,
         operator: BinaryOperator,
-        right: Box<Expression<'a>>,
+        right: Box<Expression>,
     },
     TernaryOp {
-        condition: Box<Expression<'a>>,
-        left: Box<Expression<'a>>,
-        right: Box<Expression<'a>>,
+        condition: Box<Expression>,
+        left: Box<Expression>,
+        right: Box<Expression>,
     },
 }
 
@@ -80,7 +80,7 @@ named!(value_ident<Expression>, map!(
         symbol_name,
         str::from_utf8
     ),
-    |x| Expression::Ident(x)
+    |x: &str| Expression::Ident(x.into())
 ));
 
 named!(value_number<Expression>, map!(
@@ -107,13 +107,13 @@ named!(value_call<Expression>, do_parse!(
     ws!(tag!(")"))
     >>
     (Expression::Call{
-        function: func,
-        args: args
+        function: func.into(),
+        arguments: args
     })
 ));
 
 named!(pub value<Expression>, alt_complete!(
-    value_call | value_nested | value_number | value_ident
+    value_nested | value_call | value_number | value_ident
 ));
 
 named!(expr_unary_op<Expression>, do_parse!(
@@ -126,8 +126,8 @@ named!(expr_unary_op<Expression>, do_parse!(
     (Expression::UnaryOp{
         operator: match op[0] as char {
             '-' => UnaryOperator::Minus,
-            '!' => UnaryOperator::Not,
-            '~' => UnaryOperator::Negate,
+            '!' => UnaryOperator::LogicNot,
+            '~' => UnaryOperator::BitwiseNot,
             _ => panic!("Invalid operator"),
         },
         right: Box::new(right),
@@ -148,7 +148,7 @@ named!(expr_level_2<Expression>, do_parse!(
             expr_level_1
         ),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
                 operator: match new.0[0] as char {
@@ -175,7 +175,7 @@ named!(expr_level_3<Expression>, do_parse!(
             expr_level_2
         ),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
                 operator: match new.0[0] as char {
@@ -201,7 +201,7 @@ named!(expr_level_4<Expression>, do_parse!(
             expr_level_3
         ),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
                 operator: match new.0 {
@@ -227,15 +227,15 @@ named!(expr_level_5<Expression>, do_parse!(
             expr_level_4
         ),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
                 operator: match new.0 {
                     b"==" => BinaryOperator::Equals,
                     b"!=" => BinaryOperator::NotEquals,
-                    b"<=" => BinaryOperator::LessOrEquals,
+                    b"<=" => BinaryOperator::LesserOrEquals,
                     b">=" => BinaryOperator::GreaterOrEquals,
-                    b"<" => BinaryOperator::Less,
+                    b"<" => BinaryOperator::Lesser,
                     b">" => BinaryOperator::Greater,
                     _ => panic!("Invalid operator"),
                 },
@@ -253,10 +253,10 @@ named!(expr_level_6<Expression>, do_parse!(
     fold: fold_many0!(
         pair!(ws!(tag!("&")), expr_level_5),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
-                operator: BinaryOperator::And,
+                operator: BinaryOperator::BitwiseAnd,
                 right: Box::new(new.1)
             }
         }
@@ -271,10 +271,10 @@ named!(expr_level_7<Expression>, do_parse!(
     fold: fold_many0!(
         pair!(ws!(tag!("|")), expr_level_6),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
-                operator: BinaryOperator::Or,
+                operator: BinaryOperator::BitwiseOr,
                 right: Box::new(new.1)
             }
         }
@@ -289,7 +289,7 @@ named!(expr_level_8<Expression>, do_parse!(
     fold: fold_many0!(
         pair!(ws!(tag!("&&")), expr_level_7),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
                 operator: BinaryOperator::LogicAnd,
@@ -307,7 +307,7 @@ named!(expr_level_9<Expression>, do_parse!(
     fold: fold_many0!(
         pair!(ws!(tag!("||")), expr_level_8),
         first,
-        |prev, new: (&'a [u8], Expression<'a>)| {
+        |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
                 left: Box::new(prev),
                 operator: BinaryOperator::LogicOr,
@@ -375,12 +375,12 @@ fn test_logic_or() {
 #[bench]
 fn bench_some(b: &mut test::Bencher) {
     b.iter(|| {
-               let x = test::black_box(b"a ( b ( d , ( 0 < 3 ) ) , c | d )");
+               let x = test::black_box(b"((a((1) - - - (2) - - - (3)) + 1))");
                expression(x)
            })
 }
 
 fn main() {
-    let x = b"a - ! - b";
-    println!("{:?}", expression(x));
+    let x = b"((a((1) - - - (2) - - - (3)) + 1))";
+    println!("{:#?}", expression(x));
 }

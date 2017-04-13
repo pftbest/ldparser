@@ -6,8 +6,12 @@ named!(comment, delimited!(
     tag!("*/")
 ));
 
+named!(space_or_comment, alt!(
+    multispace | comment
+));
+
 named!(pub opt_space<()>, fold_many0!(
-    alt!(multispace | comment),
+    space_or_comment,
     (),
     |_, _| ()
 ));
@@ -24,15 +28,16 @@ macro_rules! wsc(
 #[cfg(test)]
 mod tests {
     use whitespace::opt_space;
-  
-    fn is_not_space(c: u8) -> bool {
-        c as char != ' '
+
+    fn is_good(b: u8) -> bool {
+        let c = b as char;
+        c.is_alphanumeric() || c == '/' || c == '*'
     }
 
     #[test]
     fn test_wsc() {
         named!(test_parser<Vec<&[u8]>>, wsc!(many0!(
-            take_while!(is_not_space)
+            take_while!(is_good)
         )));
 
         let input = b"a /* b */ c / * d /**/ e ";
@@ -46,7 +51,7 @@ mod tests {
             >>
             opt_space
             >>
-            res: take_while!(is_not_space)
+            res: take_while!(is_good)
             >>
             opt_space
             >>
@@ -57,7 +62,7 @@ mod tests {
 
         let input1 = b"(  a  )";
         assert_done!(test_parser(input1));
-        
+
         let input2 = b"(a)";
         assert_done!(test_parser(input2));
     }

@@ -1,4 +1,5 @@
 use std::str;
+use whitespace::opt_space;
 use utils::{symbol, number};
 
 #[derive(Debug, PartialEq)]
@@ -68,21 +69,23 @@ named!(value_number<Expression>, map!(
 
 named!(value_nested<Expression>, delimited!(
     tag!("("),
-    ws!(expression),
+    wsc!(expression),
     tag!(")")
 ));
 
 named!(value_call<Expression>, do_parse!(
     func: map_res!(symbol, str::from_utf8)
     >>
-    ws!(tag!("("))
+    wsc!(tag!("("))
     >>
     args: separated_list!(
-        ws!(tag!(",")),
+        wsc!(tag!(",")),
         expression
     )
     >>
-    ws!(tag!(")"))
+    opt_space
+    >>
+    tag!(")")
     >>
     (Expression::Call{
         function: func.into(),
@@ -95,9 +98,11 @@ named!(pub value<Expression>, alt_complete!(
 ));
 
 named!(expr_unary_op<Expression>, do_parse!(
-    op: ws!(alt_complete!(
+    op: alt_complete!(
         tag!("-") | tag!("!") | tag!("~")
-    ))
+    )
+    >>
+    opt_space
     >>
     right: expr_level_1
     >>
@@ -120,7 +125,7 @@ named!(expr_level_2<Expression>, do_parse!(
     first: expr_level_1
     >>
     fold: fold_many0!(pair!(
-            ws!(alt_complete!(
+            wsc!(alt_complete!(
                 tag!("*") | tag!("/") | tag!("%")
             )),
             expr_level_1
@@ -147,7 +152,7 @@ named!(expr_level_3<Expression>, do_parse!(
     first: expr_level_2
     >>
     fold: fold_many0!(pair!(
-            ws!(alt_complete!(
+            wsc!(alt_complete!(
                 tag!("+") | tag!("-")
             )),
             expr_level_2
@@ -173,7 +178,7 @@ named!(expr_level_4<Expression>, do_parse!(
     first: expr_level_3
     >>
     fold: fold_many0!(pair!(
-            ws!(alt_complete!(
+            wsc!(alt_complete!(
                 tag!("<<") | tag!(">>")
             )),
             expr_level_3
@@ -199,7 +204,7 @@ named!(expr_level_5<Expression>, do_parse!(
     first: expr_level_4
     >>
     fold: fold_many0!(pair!(
-            ws!(alt_complete!(
+            wsc!(alt_complete!(
                 tag!("==") | tag!("!=") | tag!("<=") | tag!(">=") | tag!("<") | tag!(">")
             )),
             expr_level_4
@@ -229,7 +234,7 @@ named!(expr_level_6<Expression>, do_parse!(
     first: expr_level_5
     >>
     fold: fold_many0!(
-        pair!(ws!(tag!("&")), expr_level_5),
+        pair!(wsc!(tag!("&")), expr_level_5),
         first,
         |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
@@ -247,7 +252,7 @@ named!(expr_level_7<Expression>, do_parse!(
     first: expr_level_6
     >>
     fold: fold_many0!(
-        pair!(ws!(tag!("|")), expr_level_6),
+        pair!(wsc!(tag!("|")), expr_level_6),
         first,
         |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
@@ -265,7 +270,7 @@ named!(expr_level_8<Expression>, do_parse!(
     first: expr_level_7
     >>
     fold: fold_many0!(
-        pair!(ws!(tag!("&&")), expr_level_7),
+        pair!(wsc!(tag!("&&")), expr_level_7),
         first,
         |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
@@ -283,7 +288,7 @@ named!(expr_level_9<Expression>, do_parse!(
     first: expr_level_8
     >>
     fold: fold_many0!(
-        pair!(ws!(tag!("||")), expr_level_8),
+        pair!(wsc!(tag!("||")), expr_level_8),
         first,
         |prev, new: (&'a [u8], Expression)| {
             Expression::BinaryOp {
@@ -300,11 +305,11 @@ named!(expr_level_9<Expression>, do_parse!(
 named!(expr_ternary_op<Expression>, do_parse!(
     cond: expr_level_9
     >>
-    ws!(tag!("?"))
+    wsc!(tag!("?"))
     >>
     left: expression
     >>
-    ws!(tag!(":"))
+    wsc!(tag!(":"))
     >>
     right: expression
     >>
@@ -322,7 +327,7 @@ named!(pub expression<Expression>, alt_complete!(
 #[cfg(test)]
 mod tests {
     use expressions::expression;
-    
+
     #[test]
     fn test_ws() {
         let x = b"a ( b ( d , ( 0 ) ) , c )";

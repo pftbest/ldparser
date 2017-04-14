@@ -8,6 +8,7 @@ extern crate nom;
 mod utils;
 #[macro_use]
 mod whitespace;
+mod numbers;
 mod expressions;
 
 use expressions::expression;

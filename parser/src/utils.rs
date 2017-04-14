@@ -11,6 +11,20 @@ named!(pub number<&str, u64>,
     )
 );
 
+macro_rules! opt_complete(
+    ($i:expr, $submac:ident!( $($args:tt)* )) => ({
+        use ::nom::IResult;
+        match $submac!($i, $($args)*) {
+            IResult::Done(i, o)    => IResult::Done(i, ::std::option::Option::Some(o)),
+            IResult::Error(_)      => IResult::Done($i, ::std::option::Option::None),
+            IResult::Incomplete(_) => IResult::Done($i, ::std::option::Option::None)
+        }
+    });
+    ($i:expr, $f:expr) => (
+        opt_complete!($i, call!($f));
+    );
+);
+
 macro_rules! assert_done {
     ($res:expr) => (
         match $res {

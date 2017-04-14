@@ -1,16 +1,16 @@
 use nom::multispace;
 
-named!(comment, delimited!(
+named!(comment<&str, &str>, delimited!(
     tag!("/*"),
     take_until!("*/"),
     tag!("*/")
 ));
 
-named!(space_or_comment, alt!(
+named!(space_or_comment<&str, &str>, alt!(
     multispace | comment
 ));
 
-named!(pub opt_space<()>, fold_many0!(
+named!(pub opt_space<&str, ()>, fold_many0!(
     space_or_comment,
     (),
     |_, _| ()
@@ -29,24 +29,23 @@ macro_rules! wsc(
 mod tests {
     use whitespace::opt_space;
 
-    fn is_good(b: u8) -> bool {
-        let c = b as char;
+    fn is_good(c: char) -> bool {
         c.is_alphanumeric() || c == '/' || c == '*'
     }
 
     #[test]
     fn test_wsc() {
-        named!(test_parser<Vec<&[u8]>>, wsc!(many0!(
+        named!(test_parser<&str, Vec<&str>>, wsc!(many0!(
             take_while!(is_good)
         )));
 
-        let input = b"a /* b */ c / * d /**/ e ";
+        let input = "a /* b */ c / * d /**/ e ";
         assert_done!(test_parser(input), 6);
     }
 
     #[test]
     fn test_opt_space() {
-        named!(test_parser, do_parse!(
+        named!(test_parser<&str, &str>, do_parse!(
             tag!("(")
             >>
             opt_space
@@ -60,10 +59,10 @@ mod tests {
             (res)
         ));
 
-        let input1 = b"(  a  )";
+        let input1 = "(  a  )";
         assert_done!(test_parser(input1));
 
-        let input2 = b"(a)";
+        let input2 = "(a)";
         assert_done!(test_parser(input2));
     }
 }

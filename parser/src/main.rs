@@ -15,12 +15,12 @@ use expressions::expression;
 #[bench]
 fn bench_some(b: &mut test::Bencher) {
     b.iter(|| {
-               let x = test::black_box(b"((a((1) - - - (2) - - - (3)) + 1))");
+               let x = test::black_box("((a((1) - - - (2) - - - (3)) + 1))");
                expression(x)
            })
 }
 
 fn main() {
-    let x = b"((a((1) - - - (2) - - - (3)) + 1))";
+    let x = "((a((1) - - - (2) - - - (3)) + 1))";
     println!("{:#?}", expression(x));
 }

@@ -2,6 +2,8 @@ use expressions::Expression;
 use expressions::{expression, value};
 use whitespace::opt_space;
 use idents::symbol;
+use commands::Command;
+use commands::command;
 
 #[derive(Debug, PartialEq)]
 pub enum AssignOperator {
@@ -18,6 +20,7 @@ pub enum AssignOperator {
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
+    Command(Command),
     Assign {
         name: String,
         operator: AssignOperator,
@@ -108,8 +111,13 @@ named!(assign<&str, Statement>, do_parse!(
     })
 ));
 
+named!(command_stmt<&str, Statement>, map!(
+    command,
+    |cmd| Statement::Command(cmd)
+));
+
 named!(pub statement<&str, Statement>, alt_complete!(
-    special_assign | assign
+    special_assign | assign | command_stmt
 ));
 
 mod tests {
@@ -130,8 +138,8 @@ mod tests {
                          name: "x".into(),
                          expression: Box::new(Expression::Ident("x".into())),
                      });
-        //assert_done!(statement("LONG ( 0 ) ;"));
-        //assert_done!(statement("LONG ( 0 )"));
+        assert_done!(statement("LONG ( 0 ) ;"));
+        assert_done!(statement("LONG ( 0 )"));
         assert_done!(statement("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
     }
 }

@@ -13,16 +13,19 @@ mod idents;
 mod expressions;
 mod commands;
 mod statements;
+mod memory;
+mod sections;
+mod script;
 
 #[bench]
 fn bench_some(b: &mut ::test::Bencher) {
     b.iter(|| {
                let x = ::test::black_box("x = ((a((1) - - - (2) - - - (3)) + 1));");
-               statements::statement(x)
+               script::parse(x)
            })
 }
 
 fn main() {
-    let x = "((a((1) - - - (2) - - - (3)) + 1))";
-    println!("{:#?}", statements::statement(x));
+    let x = "x = ((a((1) - - - (2) - - - (3)) + 1));";
+    println!("{:#?}", script::parse(x));
 }

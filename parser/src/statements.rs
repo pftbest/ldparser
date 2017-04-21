@@ -1,5 +1,5 @@
 use expressions::Expression;
-use expressions::{expression, value};
+use expressions::expression;
 use whitespace::opt_space;
 use idents::symbol;
 use commands::Command;
@@ -120,6 +120,7 @@ named!(pub statement<&str, Statement>, alt_complete!(
     special_assign | assign | command_stmt
 ));
 
+#[cfg(test)]
 mod tests {
     use statements::statement;
     use statements::{Statement, AssignOperator};

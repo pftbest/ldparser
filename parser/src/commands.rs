@@ -65,6 +65,7 @@ named!(pub command<&str, Command>, alt_complete!(
     include | call | simple
 ));
 
+#[cfg(test)]
 mod tests {
     use commands::command;
 

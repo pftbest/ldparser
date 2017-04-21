@@ -26,6 +26,12 @@ fn bench_some(b: &mut ::test::Bencher) {
 }
 
 fn main() {
-    let x = "x = ((a((1) - - - (2) - - - (3)) + 1));";
+    let x = r"
+    MEMORY
+       {
+         rom (rx)  : ORIGIN = 0, LENGTH = 256K
+         ram (!rx) : org = 0x40000000, l = 4M
+       }
+    ";
     println!("{:#?}", script::parse(x));
 }

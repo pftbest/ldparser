@@ -11,6 +11,7 @@ mod whitespace;
 mod numbers;
 mod idents;
 mod expressions;
+mod commands;
 mod statements;
 
 #[bench]

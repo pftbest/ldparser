@@ -18,7 +18,6 @@ pub enum AssignOperator {
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
-    Command(Box<Expression>),
     Assign {
         name: String,
         operator: AssignOperator,
@@ -109,18 +108,8 @@ named!(assign<&str, Statement>, do_parse!(
     })
 ));
 
-named!(command<&str, Statement>, do_parse!(
-    expr: value
-    >>
-    opt_space
-    >>
-    opt_complete!(tag!(";"))
-    >>
-    (Statement::Command(Box::new(expr)))
-));
-
 named!(pub statement<&str, Statement>, alt_complete!(
-    special_assign | assign | command
+    special_assign | assign
 ));
 
 mod tests {
@@ -141,8 +130,8 @@ mod tests {
                          name: "x".into(),
                          expression: Box::new(Expression::Ident("x".into())),
                      });
-        assert_done!(statement("LONG ( 0 ) ;"));
-        assert_done!(statement("LONG ( 0 )"));
+        //assert_done!(statement("LONG ( 0 ) ;"));
+        //assert_done!(statement("LONG ( 0 )"));
         assert_done!(statement("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
     }
 }

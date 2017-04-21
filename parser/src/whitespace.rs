@@ -10,6 +10,12 @@ named!(space_or_comment<&str, &str>, alt!(
     multispace | comment
 ));
 
+named!(pub space<&str, ()>, fold_many1!(
+    space_or_comment,
+    (),
+    |_, _| ()
+));
+
 named!(pub opt_space<&str, ()>, fold_many0!(
     space_or_comment,
     (),

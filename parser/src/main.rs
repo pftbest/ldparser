@@ -11,18 +11,17 @@ mod whitespace;
 mod numbers;
 mod idents;
 mod expressions;
-
-use expressions::expression;
+mod statements;
 
 #[bench]
-fn bench_some(b: &mut test::Bencher) {
+fn bench_some(b: &mut ::test::Bencher) {
     b.iter(|| {
-               let x = test::black_box("((a((1) - - - (2) - - - (3)) + 1))");
-               expression(x)
+               let x = ::test::black_box("x = ((a((1) - - - (2) - - - (3)) + 1));");
+               statements::statement(x)
            })
 }
 
 fn main() {
     let x = "((a((1) - - - (2) - - - (3)) + 1))";
-    println!("{:#?}", expression(x));
+    println!("{:#?}", statements::statement(x));
 }

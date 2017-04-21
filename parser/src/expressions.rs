@@ -324,6 +324,7 @@ named!(pub expression<&str, Expression>, alt_complete!(
 #[cfg(test)]
 mod tests {
     use expressions::expression;
+    use expressions::{Expression, BinaryOperator};
 
     #[test]
     fn test_ws() {
@@ -334,14 +335,16 @@ mod tests {
     }
 
     #[test]
-    fn test_ternary() {
-        let x = "a ( b ) ? c ( d ) : e";
-        assert_done!(expression(x));
-    }
+    fn test_expression() {
+        assert_done!(expression("a ( .b ) ? c ( d ) : e"));
 
-    #[test]
-    fn test_logic_or() {
-        let x = "a || b";
-        assert_done!(expression(x));
+        assert_done!(expression("A-B"), Expression::Ident("A-B".into()));
+
+        assert_done!(expression("A - B"),
+                     Expression::BinaryOp {
+                         left: Box::new(Expression::Ident("A".into())),
+                         operator: BinaryOperator::Minus,
+                         right: Box::new(Expression::Ident("B".into())),
+                     });
     }
 }

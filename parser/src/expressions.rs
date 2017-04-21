@@ -1,5 +1,6 @@
 use whitespace::opt_space;
-use utils::{symbol, number};
+use numbers::number;
+use utils::symbol;
 
 #[derive(Debug, PartialEq)]
 pub enum UnaryOperator {

@@ -1,105 +1,58 @@
-use std::str::FromStr;
 use nom::{IResult, Needed, ErrorKind};
-use nom::{digit, hex_digit, oct_digit};
+use nom::hex_digit;
 
-named!(decimal<&str, u64>, map_res!(
-    digit,
-    FromStr::from_str
-));
-
-named!(hexadecimal<&str, u64>, preceded!(
-    tag_no_case!("0x"),
-    map_res!(
-        hex_digit,
-        |x| u64::from_str_radix(x, 16)
-    )
-));
-
-named!(octal<&str, u64>, preceded!(
-    tag!("0"),
-    map_res!(
-        oct_digit,
-        |x| u64::from_str_radix(x, 8)
-    )
-));
-
-named!(simple<&str, u64>,
-    alt_complete!(hexadecimal | octal | decimal)
-);
-
-named!(kilo<&str, u64>, map!(
-    terminated!(
-        simple,
-        tag!("K")
+named!(prefixed_hex<&str, u64>, map_res!(
+    preceded!(
+        alt_complete!(
+            tag!("0x") | tag!("0X")
+        ),
+        hex_digit
     ),
-    |x| (x * 1_024)
+    |num: &str| u64::from_str_radix(num, 16)
 ));
 
-named!(mega<&str, u64>, map!(
-    terminated!(
-        simple,
-        tag!("M")
-    ),
-    |x| (x * 1_048_576)
-));
-
-named!(pub number<&str, u64>,
-    alt_complete!(kilo | mega | simple)
-);
-
-#[derive(Debug, PartialEq)]
-enum Attribute {
-    Hex,
-    Oct,
-    Bin,
-    Dec,
-    Kilo,
-    Mega,
-}
-
-fn suffix(input: &str) -> IResult<&str, Attribute> {
-    let mut iter = input.chars();
-    let first = iter.next();
-    match first {
-        Some(c) => {
-            match c {
-                'h' | 'H' => IResult::Done(iter.as_str(), Attribute::Hex),
-                'o' | 'O' => IResult::Done(iter.as_str(), Attribute::Oct),
-                'b' | 'B' => IResult::Done(iter.as_str(), Attribute::Bin),
-                'd' | 'D' => IResult::Done(iter.as_str(), Attribute::Dec),
-                'k' | 'K' => IResult::Done(iter.as_str(), Attribute::Kilo),
-                'm' | 'M' => IResult::Done(iter.as_str(), Attribute::Mega),
-                _ => IResult::Error(ErrorKind::Char),
-            }
-        },
-        None => IResult::Incomplete(Needed::Size(1)),
+fn is_num_or_suffix(c: char) -> bool {
+    match c {
+        '0'...'9' | 'A'...'F' | 'a'...'f' | 'h' | 'H' | 'o' | 'O' => true,
+        _ => false,
     }
 }
 
-named!(prefix<&str, Attribute>, map!(
-    alt_complete!(
-        tag!("0x") | tag!("0X") | tag!("0")
-    ),
-    |x| match x {
-        "0x" | "0X" => Attribute::Hex,
-        "0" => Attribute::Oct,
-        _ => panic!("wrong prefix"),
-    }
-));
-
-named!(pub num<&str, u64>, do_parse!(
-    prefix: opt_complete!(prefix)
-    >>
-    body: hex_digit
-    >>
-    suffix: opt_complete!(suffix)
-    >>
-    (
-        match (prefix, suffix, body) {
-            (Oct, None, "") => 0,
-            (_, _, _) => 1,
+named!(suffixed_num<&str, u64>, map_res!(
+    take_while1!(is_num_or_suffix),
+    |num: &str| {
+        match num.char_indices().last() {
+            Some((0, _)) => u64::from_str_radix(num, 10),
+            Some((n, 'b')) | Some((n, 'B')) => u64::from_str_radix(&num[..n], 2),
+            Some((n, 'o')) | Some((n, 'O')) => u64::from_str_radix(&num[..n], 8),
+            Some((n, 'd')) | Some((n, 'D')) => u64::from_str_radix(&num[..n], 10),
+            Some((n, 'h')) | Some((n, 'H')) => u64::from_str_radix(&num[..n], 16),
+            Some((_, _)) => {
+                match num.chars().next() {
+                    Some('0') => u64::from_str_radix(num, 8),
+                    _ => u64::from_str_radix(num, 10),
+                }
+            },
+            None => panic!("num is empty"),
         }
+    }
+));
+
+named!(pub number<&str, u64>, do_parse!(
+    num: alt_complete!(
+        prefixed_hex | suffixed_num
     )
+    >>
+    mul: opt_complete!(alt_complete!(
+        tag!("K") | tag!("M")
+    ))
+    >>
+    (match mul {
+        Some("K") => num * 1024,
+        Some("M") => num * 1024 * 1024,
+        None => num,
+        _ => panic!("invalid multiplier")
+    })
 ));
 
 #[cfg(test)]
@@ -120,5 +73,12 @@ mod test {
         assert_eq!(number("10M"), IResult::Done("", 0xA0_0000u64));
         assert_eq!(number("012M"), IResult::Done("", 10_485_760u64));
         assert_eq!(number("0xAM"), IResult::Done("", 10_485_760u64));
+
+        assert_eq!(number("0b"), IResult::Done("", 0u64));
+        assert_eq!(number("0O"), IResult::Done("", 0u64));
+        assert_eq!(number("0d"), IResult::Done("", 0u64));
+        assert_eq!(number("0H"), IResult::Done("", 0u64));
+        assert_eq!(number("0"), IResult::Done("", 0u64));
+        assert_eq!(number("ah"), IResult::Done("", 10u64));
     }
 }

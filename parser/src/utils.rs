@@ -1,7 +1,3 @@
-use nom::alphanumeric;
-
-named!(pub symbol<&str, &str>, call!(alphanumeric));
-
 macro_rules! opt_complete(
     ($i:expr, $submac:ident!( $($args:tt)* )) => ({
         use ::nom::IResult;
@@ -23,12 +19,34 @@ macro_rules! assert_done {
             r @ _ => panic!("fail: {:?}", r),
         }
     );
+    ($res:expr, $expected:expr) => (
+        match $res {
+            ::nom::IResult::Done("", v @ _) => {
+                assert_eq!(v, $expected);
+            },
+            r @ _ => panic!("fail: {:?}", r),
+        }
+    );
+}
+
+macro_rules! assert_done_vec {
     ($res:expr, $num:expr) => (
         match $res {
             ::nom::IResult::Done("", v @ _) => {
                 assert_eq!(v.len(), $num);
             },
             r @ _ => panic!("fail: {:?}", r),
+        }
+    );
+}
+
+macro_rules! assert_fail {
+    ($res:expr) => (
+        match $res {
+            ::nom::IResult::Done("", r @ _) => {
+                panic!("should fail: {:?} got {:?}", $res, r)
+            },
+            _ => {},
         }
     );
 }

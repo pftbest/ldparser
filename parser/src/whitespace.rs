@@ -40,7 +40,7 @@ mod tests {
         )));
 
         let input = "a /* b */ c / * d /**/ e ";
-        assert_done!(test_parser(input), 6);
+        assert_done!(test_parser(input), vec!["a", "c", "/", "*", "d", "e"]);
     }
 
     #[test]

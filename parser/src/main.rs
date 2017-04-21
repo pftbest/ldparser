@@ -9,6 +9,7 @@ mod utils;
 #[macro_use]
 mod whitespace;
 mod numbers;
+mod idents;
 mod expressions;
 
 use expressions::expression;

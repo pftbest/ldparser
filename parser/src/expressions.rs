@@ -323,8 +323,7 @@ named!(pub expression<&str, Expression>, alt_complete!(
 
 #[cfg(test)]
 mod tests {
-    use expressions::expression;
-    use expressions::{Expression, BinaryOperator};
+    use expressions::*;
 
     #[test]
     fn test_ws() {

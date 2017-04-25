@@ -25,7 +25,7 @@ fn simple(input: &str) -> IResult<&str, &str> {
     IResult::Done(&input[input.len()..], &input[..])
 }
 
-named!(pub symbol<&str, &str>, alt_complete!(
+named!(pub symbol<&str, &str>, alt!(
      quoted | simple
 ));
 
@@ -33,14 +33,17 @@ fn is_pattern(c: char) -> bool {
     c.is_alphanumeric() || "_.$/\\~=+[]*?-!<>^:".contains(c)
 }
 
-named!(pub pattern<&str, &str>, alt_complete!(
-    quoted | take_while!(is_pattern)
+named!(pub simple_pattern<&str, &str>, take_while1!(
+    is_pattern
+));
+
+named!(pub pattern<&str, &str>, alt!(
+    quoted | simple_pattern
 ));
 
 #[cfg(test)]
 mod tests {
-    use idents::symbol;
-    use idents::pattern;
+    use idents::*;
 
     #[test]
     fn test_symbol() {

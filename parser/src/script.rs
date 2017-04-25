@@ -1,18 +1,26 @@
-use statements::Statement;
-use statements::statement;
+use statements::{assignment, Statement};
+use commands::{command, Command};
 use memory::Region;
 use memory::region;
+use sections::SectionCommand;
+use sections::section_command;
 
 #[derive(Debug, PartialEq)]
 pub enum RootItem {
     Statement(Statement),
+    Command(Command),
     Memory { regions: Vec<Region> },
-    Sections {},
+    Sections { list: Vec<SectionCommand> },
 }
 
 named!(statement_item<&str, RootItem>, map!(
-    statement,
+    assignment,
     |stmt| RootItem::Statement(stmt)
+));
+
+named!(command_item<&str, RootItem>, map!(
+    command,
+    |cmd| RootItem::Command(cmd)
 ));
 
 named!(memory_item<&str, RootItem>, do_parse!(
@@ -31,8 +39,24 @@ named!(memory_item<&str, RootItem>, do_parse!(
     })
 ));
 
+named!(sections_item<&str, RootItem>, do_parse!(
+    tag!("SECTIONS")
+    >>
+    wsc!(tag!("{"))
+    >>
+    sections: wsc!(many1!(
+        section_command
+    ))
+    >>
+    tag!("}")
+    >>
+    (RootItem::Sections {
+        list: sections
+    })
+));
+
 named!(root_item<&str, RootItem>, alt_complete!(
-    memory_item | statement_item
+    statement_item | memory_item | sections_item | command_item
 ));
 
 named!(pub parse<&str, Vec<RootItem>>, wsc!(many1!(
@@ -41,16 +65,19 @@ named!(pub parse<&str, Vec<RootItem>>, wsc!(many1!(
 
 #[cfg(test)]
 mod tests {
-    use script::parse;
+    use script::*;
+    use std::fs::{self, File};
+    use std::io::Read;
 
     #[test]
-    fn test_memory() {
-        assert_done!(parse(r"
-        MEMORY
-            {
-                rom (rx)  : ORIGIN = 0, LENGTH = 256K
-                ram (!rx) : org = 0x40000000, l = 4M
-            }
-        "));
+    fn test_parse() {
+        for entry in fs::read_dir("tests").unwrap() {
+            let path = entry.unwrap().path();
+            println!("testing: {:?}", path);
+            let mut file = File::open(path).unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).unwrap();
+            assert_done!(parse(&contents));
+        }
     }
 }

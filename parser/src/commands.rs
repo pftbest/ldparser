@@ -5,7 +5,7 @@ use whitespace::{opt_space, space};
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    Simple { name: String },
+    //Simple { name: String },
     Call {
         name: String,
         arguments: Vec<Expression>,
@@ -13,17 +13,17 @@ pub enum Command {
     Include { file: String },
 }
 
-named!(simple<&str, Command>, do_parse!(
-    name: symbol
-    >>
-    opt_space
-    >>
-    opt_complete!(tag!(";"))
-    >>
-    (Command::Simple {
-        name: name.into()
-    })
-));
+// named!(simple<&str, Command>, do_parse!(
+//     name: symbol
+//     >>
+//     opt_space
+//     >>
+//     opt_complete!(tag!(";"))
+//     >>
+//     (Command::Simple {
+//         name: name.into()
+//     })
+// ));
 
 named!(call<&str, Command>, do_parse!(
     name: symbol
@@ -62,25 +62,23 @@ named!(include<&str, Command>, do_parse!(
 ));
 
 named!(pub command<&str, Command>, alt_complete!(
-    include | call | simple
+    include | call //| simple
 ));
 
 #[cfg(test)]
 mod tests {
-    use commands::command;
+    use commands::*;
 
     #[test]
     fn test_command() {
-        assert_done!(command("LONG"));
-        assert_done!(command("LONG ;"));
-        assert_done!(command("LONG ( 0 ) ;"));
-        assert_done!(command("LONG ( 0 )"));
-        assert_done!(command("LONG ( 0 1 2 )"));
-        assert_done!(command("LONG ( 0, 1 2 )"));
-        assert_done!(command("LONG ( 0, 1, 2 )"));
+        assert_done!(command("OUTPUT_ARCH ( 0 ) ;"));
+        assert_done!(command("OUTPUT_ARCH ( 0 )"));
+        assert_done!(command("OUTPUT_ARCH ( 0 1 2 )"));
+        assert_done!(command("OUTPUT_ARCH ( 0, 1 2 )"));
+        assert_done!(command("OUTPUT_ARCH ( 0, 1, 2 )"));
 
-        assert_fail!(command("LONG ( 0, 1, 2, )"));
-        assert_fail!(command("LONG ( )"));
+        assert_fail!(command("OUTPUT_ARCH ( 0, 1, 2, )"));
+        assert_fail!(command("OUTPUT_ARCH ( )"));
 
         assert_done!(command("INCLUDE abc.h ;"));
         assert_done!(command("INCLUDE\tabc.h"));

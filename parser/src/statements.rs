@@ -2,8 +2,6 @@ use expressions::Expression;
 use expressions::expression;
 use whitespace::opt_space;
 use idents::symbol;
-use commands::Command;
-use commands::command;
 
 #[derive(Debug, PartialEq)]
 pub enum AssignOperator {
@@ -20,7 +18,6 @@ pub enum AssignOperator {
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
-    Command(Command),
     Assign {
         name: String,
         operator: AssignOperator,
@@ -111,36 +108,28 @@ named!(assign<&str, Statement>, do_parse!(
     })
 ));
 
-named!(command_stmt<&str, Statement>, map!(
-    command,
-    |cmd| Statement::Command(cmd)
-));
-
-named!(pub statement<&str, Statement>, alt_complete!(
-    special_assign | assign | command_stmt
+named!(pub assignment<&str, Statement>, alt_complete!(
+    special_assign | assign
 ));
 
 #[cfg(test)]
 mod tests {
-    use statements::statement;
-    use statements::{Statement, AssignOperator};
+    use statements::*;
     use expressions::Expression;
 
     #[test]
     fn test_statement() {
-        assert_done!(statement("A = 11 ;"),
+        assert_done!(assignment("A = 11 ;"),
                      Statement::Assign {
                          name: "A".into(),
                          operator: AssignOperator::Equals,
                          expression: Box::new(Expression::Number(11)),
                      });
-        assert_done!(statement("PROVIDE ( x = x ) ;"),
+        assert_done!(assignment("PROVIDE ( x = x ) ;"),
                      Statement::Provide {
                          name: "x".into(),
                          expression: Box::new(Expression::Ident("x".into())),
                      });
-        assert_done!(statement("LONG ( 0 ) ;"));
-        assert_done!(statement("LONG ( 0 )"));
-        assert_done!(statement("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
+        assert_done!(assignment("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
     }
 }

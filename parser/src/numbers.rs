@@ -60,7 +60,7 @@ named!(pub number<&str, u64>, alt_complete!(
 
 #[cfg(test)]
 mod test {
-    use numbers::number;
+    use numbers::*;
 
     #[test]
     fn test_binary() {

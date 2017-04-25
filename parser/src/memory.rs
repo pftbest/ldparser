@@ -1,5 +1,6 @@
 use idents::symbol;
 use numbers::number;
+use whitespace::opt_space;
 
 #[derive(Debug, PartialEq)]
 pub struct Region {
@@ -25,7 +26,9 @@ named!(length<&str, &str>, alt_complete!(
 named!(pub region<&str, Region>, do_parse!(
     name: symbol
     >>
-    wsc!(opt!(attributes))
+    opt_space
+    >>
+    opt!(attributes)
     >>
     wsc!(tag!(":"))
     >>
@@ -52,8 +55,7 @@ named!(pub region<&str, Region>, do_parse!(
 
 #[cfg(test)]
 mod tests {
-    use memory::region;
-    use memory::Region;
+    use memory::*;
 
     #[test]
     fn test_region() {

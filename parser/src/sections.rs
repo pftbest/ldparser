@@ -19,7 +19,7 @@ pub enum SectionCommand {
         align_with_input: bool,
         subsection_align: Option<Box<Expression>>,
         constraint: Option<OutputSectionConstraint>,
-        list: Vec<OutputSectionCommand>,
+        content: Vec<OutputSectionCommand>,
         region: Option<String>,
         lma_region: Option<String>,
         fillexp: Option<Box<Expression>>,
@@ -280,7 +280,7 @@ named!(output_sc<&str, SectionCommand>, do_parse!(
     >>
     wsc!(tag!("{"))
     >>
-    list: wsc!(many0!(
+    content: wsc!(many0!(
         output_section_command
     ))
     >>
@@ -312,7 +312,7 @@ named!(output_sc<&str, SectionCommand>, do_parse!(
         align_with_input: align_with_input.is_some(),
         subsection_align: subsection_align.map(Box::new),
         constraint: constraint,
-        list: list,
+        content: content,
         region: region.map(String::from),
         lma_region: lma_region.map(String::from),
         fillexp: fillexp.map(Box::new),

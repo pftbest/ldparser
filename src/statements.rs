@@ -1,7 +1,7 @@
 use expressions::Expression;
 use expressions::expression;
 use whitespace::opt_space;
-use idents::symbol;
+use idents::{symbol, string};
 
 #[derive(Debug, PartialEq)]
 pub enum AssignOperator {
@@ -35,6 +35,7 @@ pub enum Statement {
         name: String,
         expression: Box<Expression>,
     },
+    Assert { expr: Box<Expression>, text: String },
 }
 
 named!(assign_operator<&str, AssignOperator>, map!(
@@ -108,8 +109,29 @@ named!(assign<&str, Statement>, do_parse!(
     })
 ));
 
-named!(pub assignment<&str, Statement>, alt_complete!(
-    special_assign | assign
+named!(assert_stmt<&str, Statement>, do_parse!(
+    tag!("ASSERT")
+    >>
+    wsc!(tag!("("))
+    >>
+    expr: expression
+    >>
+    wsc!(tag!(","))
+    >>
+    text: string
+    >>
+    wsc!(tag!(")"))
+    >>
+    opt_complete!(tag!(";"))
+    >>
+    (Statement::Assert {
+        expr: Box::new(expr),
+        text: text.into(),
+    })
+));
+
+named!(pub statement<&str, Statement>, alt_complete!(
+    special_assign | assign | assert_stmt
 ));
 
 #[cfg(test)]
@@ -119,17 +141,17 @@ mod tests {
 
     #[test]
     fn test_statement() {
-        assert_done!(assignment("A = 11 ;"),
+        assert_done!(statement("A = 11 ;"),
                      Statement::Assign {
                          name: "A".into(),
                          operator: AssignOperator::Equals,
                          expression: Box::new(Expression::Number(11)),
                      });
-        assert_done!(assignment("PROVIDE ( x = x ) ;"),
+        assert_done!(statement("PROVIDE ( x = x ) ;"),
                      Statement::Provide {
                          name: "x".into(),
                          expression: Box::new(Expression::Ident("x".into())),
                      });
-        assert_done!(assignment("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
+        assert_done!(statement("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
     }
 }

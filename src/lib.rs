@@ -2,7 +2,7 @@
 //!
 //! # Usage
 //!
-//! ``` no_run
+//! ```
 //! extern crate ldscript_parser as lds;
 //!
 //! use std::fs::File;
@@ -10,9 +10,10 @@
 //!
 //! fn main() {
 //!     let script = &mut String::new();
-//!     File::open("cortex-m4.ld").unwrap().read_to_string(script);
+//!     File::open("tests/msp430bt5190.ld").unwrap()
+//!                 .read_to_string(script).unwrap();
 //!
-//!     println!("{:#?}", lds::parse(script));
+//!     println!("{:#?}", lds::parse(script).unwrap());
 //! }
 //! ```
 //!

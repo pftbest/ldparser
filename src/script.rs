@@ -1,9 +1,10 @@
-use statements::{assignment, Statement};
+use statements::{statement, Statement};
 use commands::{command, Command};
 use memory::Region;
 use memory::region;
 use sections::SectionCommand;
 use sections::section_command;
+use whitespace::opt_space;
 
 #[derive(Debug, PartialEq)]
 pub enum RootItem {
@@ -14,7 +15,7 @@ pub enum RootItem {
 }
 
 named!(statement_item<&str, RootItem>, map!(
-    assignment,
+    statement,
     |stmt| RootItem::Statement(stmt)
 ));
 
@@ -59,15 +60,24 @@ named!(root_item<&str, RootItem>, alt_complete!(
     statement_item | memory_item | sections_item | command_item
 ));
 
-named!(pub parse<&str, Vec<RootItem>>, wsc!(many1!(
-    root_item
-)));
+named!(pub parse<&str, Vec<RootItem>>, alt_complete!(
+    wsc!(many1!(root_item))
+    |
+    map!(opt_space, |_| vec![])
+));
 
 #[cfg(test)]
 mod tests {
     use script::*;
     use std::fs::{self, File};
     use std::io::Read;
+
+    #[test]
+    fn test_empty() {
+        assert_done_vec!(parse(""), 0);
+        assert_done_vec!(parse("                               "), 0);
+        assert_done_vec!(parse("      /* hello */              "), 0);
+    }
 
     #[test]
     fn test_parse() {

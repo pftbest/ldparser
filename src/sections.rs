@@ -1,4 +1,4 @@
-use statements::{assignment, Statement};
+use statements::{statement, Statement};
 use commands::{command, Command};
 use idents::symbol;
 use idents::pattern;
@@ -29,6 +29,7 @@ pub enum SectionCommand {
 #[derive(Debug, PartialEq)]
 pub enum OutputSectionCommand {
     Statement(Statement),
+    Fill { expr: Box<Expression> },
     Data {
         d_type: DataType,
         value: Box<Expression>,
@@ -175,8 +176,24 @@ named!(data_osc<&str, OutputSectionCommand>, do_parse!(
     })
 ));
 
-named!(assignment_osc<&str, OutputSectionCommand>, map!(
-    assignment,
+named!(fill_osc<&str, OutputSectionCommand>, do_parse!(
+    tag!("FILL")
+    >>
+    wsc!(tag!("("))
+    >>
+    expr: expression
+    >>
+    wsc!(tag!(")"))
+    >>
+    opt_complete!(tag!(";"))
+    >>
+    (OutputSectionCommand::Fill {
+        expr: Box::new(expr)
+    })
+));
+
+named!(statement_osc<&str, OutputSectionCommand>, map!(
+    statement,
     |stmt| OutputSectionCommand::Statement(stmt)
 ));
 
@@ -226,11 +243,11 @@ named!(keep_osc<&str, OutputSectionCommand>, do_parse!(
 ));
 
 named!(output_section_command<&str, OutputSectionCommand>, alt_complete!(
-    assignment_osc | keep_osc | data_osc | input_osc
+    statement_osc | keep_osc | data_osc | fill_osc | input_osc
 ));
 
 named!(statement_sc<&str, SectionCommand>, map!(
-    assignment,
+    statement,
     |stmt| SectionCommand::Statement(stmt)
 ));
 
@@ -339,10 +356,6 @@ mod tests {
         assert_done!(input_osc("EXCLUDE_FILE ( *a ) *b ( .c .d )"));
         assert_done!(input_osc("EXCLUDE_FILE ( *a ) *b ( .c EXCLUDE_FILE ( *a ) .d )"));
 
-        assert_done!(output_sc("/DISCARD/ : { *(.note.GNU-stack) }"));
-        assert_done!(output_sc(".DATA : { [A-Z]*(.data) }"));
-        assert_done!(output_sc(".infoD     : {} > INFOD"));
-
         assert_done!(output_section_command("[A-Z]*(.data)"));
         assert_done!(output_section_command("LONG((__CTOR_END__ - __CTOR_LIST__) / 4 - 2)"));
         assert_done!(output_section_command("EXCLUDE_FILE (*crtend.o *otherfile.o) *(.ctors)"));
@@ -353,5 +366,16 @@ mod tests {
         assert_done!(output_section_command("LONG(0);"));
         assert_done!(output_section_command("SORT(CONSTRUCTORS)"));
         assert_done!(output_section_command("*"));
+
+        assert_done!(statement_osc("ASSERT(SIZEOF(.upper)==0,\"Test\");"));
+        assert_done!(output_section_command("ASSERT(SIZEOF(.upper)==0,\"Test\");"));
+        assert_done!(output_section_command("FILL(0xff);"));
+
+        assert_done!(output_sc("/DISCARD/ : { *(.note.GNU-stack) }"));
+        assert_done!(output_sc(".DATA : { [A-Z]*(.data) }"));
+        assert_done!(output_sc(".infoD     : {} > INFOD"));
+
+        assert_done!(output_sc(".a:{*(.b .c)*(.d .e)}"));
+
     }
 }

@@ -1,10 +1,10 @@
 use nom::{IResult, Needed, ErrorKind};
 
-named!(quoted<&str, &str>, delimited!(
+named!(pub string<&str, &str>, recognize!(delimited!(
     tag!("\""),
     take_until!("\""),
     tag!("\"")
-));
+)));
 
 fn simple(input: &str) -> IResult<&str, &str> {
     let mut iter = input.char_indices();
@@ -26,19 +26,19 @@ fn simple(input: &str) -> IResult<&str, &str> {
 }
 
 named!(pub symbol<&str, &str>, alt!(
-     quoted | simple
+     string | simple
 ));
 
 fn is_pattern(c: char) -> bool {
     c.is_alphanumeric() || "_.$/\\~=+[]*?-!<>^:".contains(c)
 }
 
-named!(pub simple_pattern<&str, &str>, take_while1!(
+named!(simple_pattern<&str, &str>, take_while1!(
     is_pattern
 ));
 
 named!(pub pattern<&str, &str>, alt!(
-    quoted | simple_pattern
+    string | simple_pattern
 ));
 
 #[cfg(test)]
@@ -51,7 +51,7 @@ mod tests {
         assert_done!(symbol(".text"), ".text");
         assert_done!(symbol("a-b"), "a-b");
         assert_done!(symbol("\"spaces are ok, just quote the identifier\""),
-                     "spaces are ok, just quote the identifier");
+                     "\"spaces are ok, just quote the identifier\"");
     }
 
     #[test]
@@ -60,7 +60,7 @@ mod tests {
         assert_done!(pattern(".text"), ".text");
         assert_done!(pattern("hello*.o"), "hello*.o");
         assert_done!(pattern("\"spaces are ok, just quote the identifier\""),
-                     "spaces are ok, just quote the identifier");
+                     "\"spaces are ok, just quote the identifier\"");
         assert_done!(pattern("this+is-another*crazy[example]"),
                      "this+is-another*crazy[example]");
     }

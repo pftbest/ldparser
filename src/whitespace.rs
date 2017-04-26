@@ -1,44 +1,74 @@
 use nom::multispace;
 
 named!(comment<&str, &str>, delimited!(
-    tag_s!("/*"),
-    take_until_s!("*/"),
-    tag_s!("*/")
+    tag!("/*"),
+    take_until!("*/"),
+    tag!("*/")
 ));
 
-named!(pub space_or_comment<&str, Vec<&str>>, many0!(
-    alt!(multispace | comment)
+named!(space_or_comment<&str, &str>, alt!(
+    multispace | comment
 ));
+
+named!(pub space<&str, ()>, fold_many1!(
+    space_or_comment,
+    (),
+    |_, _| ()
+));
+
+named!(pub opt_space<&str, ()>, fold_many0!(
+    space_or_comment,
+    (),
+    |_, _| ()
+));
+
+/// Transforms a parser to automatically consume whitespace and comments
+/// between each token.
+macro_rules! wsc(
+    ($i:expr, $($args:tt)*) => ({
+        use $crate::whitespace::opt_space;
+        sep!($i, opt_space, $($args)*)
+    })
+);
 
 #[cfg(test)]
-mod test {
-    use nom::{IResult, Needed};
+mod tests {
+    use whitespace::opt_space;
+
+    fn is_good(c: char) -> bool {
+        c.is_alphanumeric() || c == '/' || c == '*'
+    }
 
     #[test]
-    fn test_comment() {
-        named!(test_parser<&str, Vec<char>>, wsc!(many0!(
-            anychar
+    fn test_wsc() {
+        named!(test_parser<&str, Vec<&str>>, wsc!(many0!(
+            take_while!(is_good)
         )));
-        let input = "a /* b */ c / * d /**/ e ";
-        let output = IResult::Done("", vec!['a', 'c', '/', '*', 'd', 'e']);
-        let result = test_parser(input);
-        assert_eq!(output, result);
-    }
 
-    fn anychar(input: &str) -> IResult<&str, char> {
-        let mut chars = input.chars();
-        if let Some(c) = chars.next() {
-            IResult::Done(&input[c.len_utf8()..], c)
-        } else {
-            IResult::Incomplete(Needed::Size(1))
-        }
+        let input = "a /* b */ c / * d /**/ e ";
+        assert_done!(test_parser(input), vec!["a", "c", "/", "*", "d", "e"]);
     }
 
     #[test]
-    fn test_anychar() {
-        let input = "Привет";
-        let output = IResult::Done("ривет", 'П');
-        let result = anychar(input);
-        assert_eq!(output, result);
+    fn test_opt_space() {
+        named!(test_parser<&str, &str>, do_parse!(
+            tag!("(")
+            >>
+            opt_space
+            >>
+            res: take_while!(is_good)
+            >>
+            opt_space
+            >>
+            tag!(")")
+            >>
+            (res)
+        ));
+
+        let input1 = "(  a  )";
+        assert_done!(test_parser(input1));
+
+        let input2 = "(a)";
+        assert_done!(test_parser(input2));
     }
 }

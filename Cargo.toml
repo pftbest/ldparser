@@ -3,10 +3,13 @@ name = "ldscript-parser"
 authors = ["Vadzim Dambrouski <vadzim.dambrouski@promwad.com>"]
 description = "A Linker Script file parser"
 documentation = "https://docs.rs/ldscript-parser"
-keywords = ["Linker Script", "ldscript", "lds", "parser"]
+keywords = ["ldscript", "lds", "parser"]
 license = "MIT"
 repository = "https://github.com/pftbest/ldparser"
 version = "0.1.0"
+exclude = [
+    "tests/*"
+]
 
 [dependencies]
 nom = "2.2"

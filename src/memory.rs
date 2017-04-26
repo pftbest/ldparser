@@ -1,5 +1,6 @@
-use symbols::symbol_name;
+use idents::symbol;
 use numbers::number;
+use whitespace::opt_space;
 
 #[derive(Debug, PartialEq)]
 pub struct Region {
@@ -9,37 +10,39 @@ pub struct Region {
 }
 
 named!(attributes<&str, &str>, delimited!(
-    tag_s!("("),
-    take_until_s!(")"),
-    tag_s!(")")
+    tag!("("),
+    take_until!(")"),
+    tag!(")")
 ));
 
 named!(origin<&str, &str>, alt_complete!(
-    tag_s!("ORIGIN") | tag_s!("org") | tag_s!("o")
+    tag!("ORIGIN") | tag!("org") | tag!("o")
 ));
 
 named!(length<&str, &str>, alt_complete!(
-    tag_s!("LENGTH") | tag_s!("len") | tag_s!("l")
+    tag!("LENGTH") | tag!("len") | tag!("l")
 ));
 
-named!(region<&str, Region>, wsc!(do_parse!(
-    name: symbol_name
+named!(pub region<&str, Region>, do_parse!(
+    name: symbol
+    >>
+    opt_space
     >>
     opt!(attributes)
     >>
-    tag_s!(":")
+    wsc!(tag!(":"))
     >>
     origin
     >>
-    tag_s!("=")
+    wsc!(tag!("="))
     >>
     org: number
     >>
-    tag_s!(",")
+    wsc!(tag!(","))
     >>
     length
     >>
-    tag_s!("=")
+    wsc!(tag!("="))
     >>
     len: number
     >>
@@ -48,46 +51,25 @@ named!(region<&str, Region>, wsc!(do_parse!(
         origin: org,
         length: len
     })
-)));
-
-named!(pub regions<&str, Vec<Region>>, many0!(
-    region
 ));
 
 #[cfg(test)]
-mod test {
-    use nom::IResult;
-    use memory::{regions, Region};
+mod tests {
+    use memory::*;
 
     #[test]
-    fn test_regions() {
-        assert_eq!(regions(r"
-            SFR ( rwx )      : ORIGIN = 0x0000, LENGTH = 0x0010 /* END=0x0010, size 16 */
-            RAM              : ORIGIN = 0x0200, LENGTH = 0x0200 /* END=0x03FF, size 512 */
-            INFOMEM          : ORIGIN = 0x1000, LENGTH = 0x0100 /* END=0x10FF,
-             size 256 as 4 64-byte segments */
-            ROM              : org = 0x2000, len = 4K
-            "),
-                   IResult::Done("",
-                                 vec![Region {
-                                          name: String::from("SFR"),
-                                          origin: 0,
-                                          length: 16,
-                                      },
-                                      Region {
-                                          name: String::from("RAM"),
-                                          origin: 512,
-                                          length: 512,
-                                      },
-                                      Region {
-                                          name: String::from("INFOMEM"),
-                                          origin: 4096,
-                                          length: 256,
-                                      },
-                                      Region {
-                                          name: String::from("ROM"),
-                                          origin: 8192,
-                                          length: 4096,
-                                      }]));
+    fn test_region() {
+        assert_done!(region("rom (rx)  : ORIGIN = 0, LENGTH = 256K"),
+                     Region {
+                         name: "rom".into(),
+                         origin: 0,
+                         length: 256 * 1024,
+                     });
+        assert_done!(region("ram (!rx) : org = 0x40000000, l = 4M"),
+                     Region {
+                         name: "ram".into(),
+                         origin: 0x40000000,
+                         length: 4 * 1024 * 1024,
+                     });
     }
 }

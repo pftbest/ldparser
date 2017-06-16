@@ -354,13 +354,23 @@ mod tests {
         assert_fail!(input_osc("EXCLUDE_FILE ( EXCLUDE_FILE ( *a *b ) *c ) .d"));
         assert_done!(input_osc("EXCLUDE_FILE ( *a ) *b ( .c )"));
         assert_done!(input_osc("EXCLUDE_FILE ( *a ) *b ( .c .d )"));
-        assert_done!(input_osc("EXCLUDE_FILE ( *a ) *b ( .c EXCLUDE_FILE ( *a ) .d )"));
+        assert_done!(input_osc(
+            "EXCLUDE_FILE ( *a ) *b ( .c EXCLUDE_FILE ( *a ) .d )",
+        ));
 
         assert_done!(output_section_command("[A-Z]*(.data)"));
-        assert_done!(output_section_command("LONG((__CTOR_END__ - __CTOR_LIST__) / 4 - 2)"));
-        assert_done!(output_section_command("EXCLUDE_FILE (*crtend.o *otherfile.o) *(.ctors)"));
-        assert_done!(output_section_command("*(EXCLUDE_FILE (*crtend.o *otherfile.o) .ctors)"));
-        assert_done!(output_section_command("*(EXCLUDE_FILE (*a) .text EXCLUDE_FILE (*b) .c)"));
+        assert_done!(output_section_command(
+            "LONG((__CTOR_END__ - __CTOR_LIST__) / 4 - 2)",
+        ));
+        assert_done!(output_section_command(
+            "EXCLUDE_FILE (*crtend.o *otherfile.o) *(.ctors)",
+        ));
+        assert_done!(output_section_command(
+            "*(EXCLUDE_FILE (*crtend.o *otherfile.o) .ctors)",
+        ));
+        assert_done!(output_section_command(
+            "*(EXCLUDE_FILE (*a) .text EXCLUDE_FILE (*b) .c)",
+        ));
         assert_done!(output_section_command("KEEP(SORT_BY_NAME(*)(.ctors))"));
         assert_done!(output_section_command("PROVIDE (__init_array_end = .);"));
         assert_done!(output_section_command("LONG(0);"));
@@ -368,7 +378,9 @@ mod tests {
         assert_done!(output_section_command("*"));
 
         assert_done!(statement_osc("ASSERT(SIZEOF(.upper)==0,\"Test\");"));
-        assert_done!(output_section_command("ASSERT(SIZEOF(.upper)==0,\"Test\");"));
+        assert_done!(output_section_command(
+            "ASSERT(SIZEOF(.upper)==0,\"Test\");",
+        ));
         assert_done!(output_section_command("FILL(0xff);"));
 
         assert_done!(output_sc("/DISCARD/ : { *(.note.GNU-stack) }"));

@@ -141,17 +141,21 @@ mod tests {
 
     #[test]
     fn test_statement() {
-        assert_done!(statement("A = 11 ;"),
-                     Statement::Assign {
-                         name: "A".into(),
-                         operator: AssignOperator::Equals,
-                         expression: Box::new(Expression::Number(11)),
-                     });
-        assert_done!(statement("PROVIDE ( x = x ) ;"),
-                     Statement::Provide {
-                         name: "x".into(),
-                         expression: Box::new(Expression::Ident("x".into())),
-                     });
+        assert_done!(
+            statement("A = 11 ;"),
+            Statement::Assign {
+                name: "A".into(),
+                operator: AssignOperator::Equals,
+                expression: Box::new(Expression::Number(11)),
+            }
+        );
+        assert_done!(
+            statement("PROVIDE ( x = x ) ;"),
+            Statement::Provide {
+                name: "x".into(),
+                expression: Box::new(Expression::Ident("x".into())),
+            }
+        );
         assert_done!(statement("PROBLEM += HELLO ( WORLD , 0 ) + 1 ;"));
     }
 }

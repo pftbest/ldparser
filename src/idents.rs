@@ -50,8 +50,10 @@ mod tests {
         assert_done!(symbol(".0"), ".0");
         assert_done!(symbol(".text"), ".text");
         assert_done!(symbol("a-b"), "a-b");
-        assert_done!(symbol("\"spaces are ok, just quote the identifier\""),
-                     "\"spaces are ok, just quote the identifier\"");
+        assert_done!(
+            symbol("\"spaces are ok, just quote the identifier\""),
+            "\"spaces are ok, just quote the identifier\""
+        );
     }
 
     #[test]
@@ -59,9 +61,13 @@ mod tests {
         assert_done!(pattern("0"), "0");
         assert_done!(pattern(".text"), ".text");
         assert_done!(pattern("hello*.o"), "hello*.o");
-        assert_done!(pattern("\"spaces are ok, just quote the identifier\""),
-                     "\"spaces are ok, just quote the identifier\"");
-        assert_done!(pattern("this+is-another*crazy[example]"),
-                     "this+is-another*crazy[example]");
+        assert_done!(
+            pattern("\"spaces are ok, just quote the identifier\""),
+            "\"spaces are ok, just quote the identifier\""
+        );
+        assert_done!(
+            pattern("this+is-another*crazy[example]"),
+            "this+is-another*crazy[example]"
+        );
     }
 }

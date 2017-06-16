@@ -339,11 +339,13 @@ mod tests {
 
         assert_done!(expression("A-B"), Expression::Ident("A-B".into()));
 
-        assert_done!(expression("A - B"),
-                     Expression::BinaryOp {
-                         left: Box::new(Expression::Ident("A".into())),
-                         operator: BinaryOperator::Minus,
-                         right: Box::new(Expression::Ident("B".into())),
-                     });
+        assert_done!(
+            expression("A - B"),
+            Expression::BinaryOp {
+                left: Box::new(Expression::Ident("A".into())),
+                operator: BinaryOperator::Minus,
+                right: Box::new(Expression::Ident("B".into())),
+            }
+        );
     }
 }

@@ -59,17 +59,21 @@ mod tests {
 
     #[test]
     fn test_region() {
-        assert_done!(region("rom (rx)  : ORIGIN = 0, LENGTH = 256K"),
-                     Region {
-                         name: "rom".into(),
-                         origin: 0,
-                         length: 256 * 1024,
-                     });
-        assert_done!(region("ram (!rx) : org = 0x40000000, l = 4M"),
-                     Region {
-                         name: "ram".into(),
-                         origin: 0x40000000,
-                         length: 4 * 1024 * 1024,
-                     });
+        assert_done!(
+            region("rom (rx)  : ORIGIN = 0, LENGTH = 256K"),
+            Region {
+                name: "rom".into(),
+                origin: 0,
+                length: 256 * 1024,
+            }
+        );
+        assert_done!(
+            region("ram (!rx) : org = 0x40000000, l = 4M"),
+            Region {
+                name: "ram".into(),
+                origin: 0x40000000,
+                length: 4 * 1024 * 1024,
+            }
+        );
     }
 }

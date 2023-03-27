@@ -4,6 +4,12 @@ use idents::{symbol, pattern};
 use whitespace::{opt_space, space};
 
 #[derive(Debug, PartialEq)]
+pub enum InsertOrder {
+    Before,
+    After,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Command {
     //Simple { name: String },
     Call {
@@ -11,7 +17,16 @@ pub enum Command {
         arguments: Vec<Expression>,
     },
     Include { file: String },
+    Insert {
+        order: InsertOrder,
+        section: String,
+    },
 }
+
+named!(inset_order<&str, InsertOrder>, alt_complete!(
+    map!(tag!("BEFORE"), |_| InsertOrder::Before) |
+    map!(tag!("AFTER"), |_| InsertOrder::After)
+));
 
 // named!(simple<&str, Command>, do_parse!(
 //     name: symbol
@@ -61,8 +76,25 @@ named!(include<&str, Command>, do_parse!(
     })
 ));
 
+named!(insert<&str, Command>, do_parse!(
+    tag!("INSERT")
+    >>
+    order: wsc!(inset_order)
+    >>
+    section: symbol
+    >>
+    opt_space
+    >>
+    opt_complete!(tag!(";"))
+    >>
+    (Command::Insert {
+        order,
+        section: section.into(),
+    })
+));
+
 named!(pub command<&str, Command>, alt_complete!(
-    include | call //| simple
+    include | call | insert //| simple
 ));
 
 #[cfg(test)]
@@ -82,5 +114,8 @@ mod tests {
 
         assert_done!(command("INCLUDE abc.h ;"));
         assert_done!(command("INCLUDE\tabc.h"));
+
+        assert_done!(command("INSERT BEFORE .text  ;"));
+        assert_done!(command("INSERT  AFTER  .text"));
     }
 }

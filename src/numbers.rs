@@ -25,7 +25,7 @@ named!(prefixed_hex<&str, u64>, map_res!(
 
 fn is_num_or_suffix(c: char) -> bool {
     match c {
-        '0'...'9' | 'A'...'F' | 'a'...'f' | 'h' | 'H' | 'o' | 'O' | 'k' | 'K' | 'm' | 'M' => true,
+        '0'..='9' | 'A'..='F' | 'a'..='f' | 'h' | 'H' | 'o' | 'O' | 'k' | 'K' | 'm' | 'M' => true,
         _ => false,
     }
 }

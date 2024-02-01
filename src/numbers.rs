@@ -1,27 +1,52 @@
-use nom::{IResult, hex_digit};
+use std::panic;
 
-fn mul_suffix(input: &str) -> IResult<&str, u64> {
-    match input.chars().next() {
-        Some('k') | Some('K') => IResult::Done(&input[1..], 1024),
-        Some('m') | Some('M') => IResult::Done(&input[1..], 1024 * 1024),
-        _ => IResult::Done(&input[..], 1),
-    }
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_while1},
+    character::complete::{hex_digit1, one_of},
+    combinator::{map, map_res, opt},
+    error::{ErrorKind, ParseError},
+    Err, IResult,
+};
+
+fn mul_suffix0(input: &str) -> IResult<&str, u64> {
+    map(opt(one_of("kKmM")), |chr: Option<char>| {
+        chr.map_or(1, |c: char| match c {
+            'k' | 'K' => 1024,
+            'm' | 'M' => 1024 * 1024,
+            _ => panic!("Should not happen"),
+        })
+    })(input)
 }
 
-named!(prefixed_hex<&str, u64>, map_res!(
-    do_parse!(
-        alt_complete!(
-            tag!("0x") | tag!("0X")
-        )
-        >>
-        num: hex_digit
-        >>
-        mul: mul_suffix
-        >>
-        (num, mul)
-    ),
-    |(num, mul)| u64::from_str_radix(num, 16).map(|v| v * mul)
-));
+fn prefixed_hex(input: &str) -> IResult<&str, u64> {
+    let (_input, _) = (alt((tag("0x"), tag("0X"))))(input)?;
+    let (_input, num) = hex_digit1(_input)?;
+    match u64::from_str_radix(num, 16) {
+        Ok(val) => {
+            let (_input, mul) = mul_suffix0(_input)?;
+            if let Some(chr) = _input.chars().next() {
+                if chr.is_alphanumeric() {
+                    return Err(Err::Failure(ParseError::from_error_kind(
+                        input,
+                        ErrorKind::HexDigit,
+                    )));
+                }
+            }
+            match val.checked_mul(mul) {
+                Some(v) => Ok((_input, v)),
+                None => Err(Err::Failure(ParseError::from_error_kind(
+                    input,
+                    ErrorKind::HexDigit,
+                ))),
+            }
+        }
+        Err(_) => Err(Err::Failure(ParseError::from_error_kind(
+            input,
+            ErrorKind::HexDigit,
+        ))),
+    }
+}
 
 fn is_num_or_suffix(c: char) -> bool {
     match c {
@@ -37,9 +62,8 @@ fn parse_oct_or_dec(num: &str) -> Result<u64, ::std::num::ParseIntError> {
     }
 }
 
-named!(suffixed_num<&str, u64>, map_res!(
-    take_while1!(is_num_or_suffix),
-    |num: &str| {
+fn suffixed_num(input: &str) -> IResult<&str, u64> {
+    map_res(take_while1(is_num_or_suffix), |num: &str| {
         match num.char_indices().last() {
             Some((0, _)) => u64::from_str_radix(num, 10),
             Some((n, 'b')) | Some((n, 'B')) => u64::from_str_radix(&num[..n], 2),
@@ -51,12 +75,12 @@ named!(suffixed_num<&str, u64>, map_res!(
             Some((_, _)) => parse_oct_or_dec(num),
             None => panic!("num is empty"),
         }
-    }
-));
+    })(input)
+}
 
-named!(pub number<&str, u64>, alt_complete!(
-    prefixed_hex | suffixed_num
-));
+pub fn number(input: &str) -> IResult<&str, u64> {
+    alt((prefixed_hex, suffixed_num))(input)
+}
 
 #[cfg(test)]
 mod test {
@@ -69,9 +93,7 @@ mod test {
         assert_done!(number("1101B"), 0b1101);
 
         assert_done!(
-            number(
-                "1111111111111111111111111111111111111111111111111111111111111111b",
-            ),
+            number("1111111111111111111111111111111111111111111111111111111111111111b",),
             0xffffffffffffffff
         );
         assert_fail!(number(

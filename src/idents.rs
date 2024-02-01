@@ -1,45 +1,38 @@
-use nom::{IResult, Needed, ErrorKind};
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_till, take_until, take_while1},
+    character::complete::satisfy,
+    combinator::recognize,
+    sequence::{delimited, pair},
+    IResult,
+};
 
-named!(pub string<&str, &str>, recognize!(delimited!(
-    tag!("\""),
-    take_until!("\""),
-    tag!("\"")
-)));
-
-fn simple(input: &str) -> IResult<&str, &str> {
-    let mut iter = input.char_indices();
-    if let Some((_, c)) = iter.next() {
-        // starts with a letter, underscore, or period
-        if !(c.is_alphabetic() || c == '_' || c == '.') {
-            return IResult::Error(ErrorKind::Char);
-        }
-    } else {
-        return IResult::Incomplete(Needed::Size(1));
-    }
-    for (i, c) in iter {
-        // may include letters, digits, underscores, periods, and hyphens
-        if !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-') {
-            return IResult::Done(&input[i..], &input[..i]);
-        }
-    }
-    IResult::Done(&input[input.len()..], &input[..])
+pub fn string(input: &str) -> IResult<&str, &str> {
+    delimited(tag("\""), take_until("\""), tag("\""))(input)
 }
 
-named!(pub symbol<&str, &str>, alt!(
-     string | simple
-));
+fn simple(input: &str) -> IResult<&str, &str> {
+    recognize(pair(
+        satisfy(|c| c.is_alphabetic() || c == '_' || c == '.'),
+        take_till(|c: char| !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-')),
+    ))(input)
+}
+
+pub fn symbol(input: &str) -> IResult<&str, &str> {
+    alt((string, simple))(input)
+}
 
 fn is_pattern(c: char) -> bool {
     c.is_alphanumeric() || "_.$/\\~=+[]*?-!<>^:".contains(c)
 }
 
-named!(simple_pattern<&str, &str>, take_while1!(
-    is_pattern
-));
+fn simple_pattern(input: &str) -> IResult<&str, &str> {
+    take_while1(is_pattern)(input)
+}
 
-named!(pub pattern<&str, &str>, alt!(
-    string | simple_pattern
-));
+pub fn pattern(input: &str) -> IResult<&str, &str> {
+    alt((string, simple_pattern))(input)
+}
 
 #[cfg(test)]
 mod tests {
@@ -52,7 +45,7 @@ mod tests {
         assert_done!(symbol("a-b"), "a-b");
         assert_done!(
             symbol("\"spaces are ok, just quote the identifier\""),
-            "\"spaces are ok, just quote the identifier\""
+            "spaces are ok, just quote the identifier"
         );
     }
 
@@ -63,7 +56,7 @@ mod tests {
         assert_done!(pattern("hello*.o"), "hello*.o");
         assert_done!(
             pattern("\"spaces are ok, just quote the identifier\""),
-            "\"spaces are ok, just quote the identifier\""
+            "spaces are ok, just quote the identifier"
         );
         assert_done!(
             pattern("this+is-another*crazy[example]"),

@@ -1,9 +1,15 @@
-use statements::{statement, Statement};
 use commands::{command, Command};
-use memory::Region;
 use memory::region;
-use sections::SectionCommand;
+use memory::Region;
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::combinator::map;
+use nom::multi::many1;
+use nom::sequence::tuple;
+use nom::IResult;
 use sections::section_command;
+use sections::SectionCommand;
+use statements::{statement, Statement};
 use whitespace::opt_space;
 
 #[derive(Debug, PartialEq)]
@@ -14,57 +20,35 @@ pub enum RootItem {
     Sections { list: Vec<SectionCommand> },
 }
 
-named!(statement_item<&str, RootItem>, map!(
-    statement,
-    |stmt| RootItem::Statement(stmt)
-));
+fn statement_item(input: &str) -> IResult<&str, RootItem> {
+    map(statement, |stmt| RootItem::Statement(stmt))(input)
+}
 
-named!(command_item<&str, RootItem>, map!(
-    command,
-    |cmd| RootItem::Command(cmd)
-));
+fn command_item(input: &str) -> IResult<&str, RootItem> {
+    map(command, |cmd| RootItem::Command(cmd))(input)
+}
 
-named!(memory_item<&str, RootItem>, do_parse!(
-    tag!("MEMORY")
-    >>
-    wsc!(tag!("{"))
-    >>
-    regions: wsc!(many1!(
-        region
-    ))
-    >>
-    tag!("}")
-    >>
-    (RootItem::Memory {
-        regions: regions
-    })
-));
+fn memory_item(input: &str) -> IResult<&str, RootItem> {
+    let (input, _) = tuple((tag("MEMORY"), wsc!(tag("{"))))(input)?;
+    let (input, regions) = many1(wsc!(region))(input)?;
+    let (input, _) = tag("}")(input)?;
+    Ok((input, RootItem::Memory { regions: regions }))
+}
 
-named!(sections_item<&str, RootItem>, do_parse!(
-    tag!("SECTIONS")
-    >>
-    wsc!(tag!("{"))
-    >>
-    sections: wsc!(many1!(
-        section_command
-    ))
-    >>
-    tag!("}")
-    >>
-    (RootItem::Sections {
-        list: sections
-    })
-));
+fn sections_item(input: &str) -> IResult<&str, RootItem> {
+    let (input, _) = tuple((tag("SECTIONS"), wsc!(tag("{"))))(input)?;
+    let (input, sections) = many1(wsc!(section_command))(input)?;
+    let (input, _) = tag("}")(input)?;
+    Ok((input, RootItem::Sections { list: sections }))
+}
 
-named!(root_item<&str, RootItem>, alt_complete!(
-    statement_item | memory_item | sections_item | command_item
-));
+fn root_item(input: &str) -> IResult<&str, RootItem> {
+    alt((statement_item, memory_item, sections_item, command_item))(input)
+}
 
-named!(pub parse<&str, Vec<RootItem>>, alt_complete!(
-    wsc!(many1!(root_item))
-    |
-    map!(opt_space, |_| vec![])
-));
+pub fn parse(input: &str) -> IResult<&str, Vec<RootItem>> {
+    alt((many1(wsc!(root_item)), map(opt_space, |_| vec![])))(input)
+}
 
 #[cfg(test)]
 mod tests {

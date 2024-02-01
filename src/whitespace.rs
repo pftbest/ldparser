@@ -1,38 +1,53 @@
-use nom::multispace;
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_until},
+    character::complete::multispace1,
+    combinator::recognize,
+    multi::{fold_many0, fold_many1},
+    sequence::delimited,
+    IResult,
+};
 
-named!(comment<&str, &str>, delimited!(
-    tag!("/*"),
-    take_until!("*/"),
-    tag!("*/")
-));
+pub fn comment(input: &str) -> IResult<&str, &str> {
+    delimited(tag("/*"), take_until("*/"), tag("*/"))(input)
+}
 
-named!(space_or_comment<&str, &str>, alt!(
-    multispace | comment
-));
+pub fn space_or_comment(input: &str) -> IResult<&str, &str> {
+    alt((multispace1, comment))(input)
+}
 
-named!(pub space<&str, ()>, fold_many1!(
-    space_or_comment,
-    (),
-    |_, _| ()
-));
+pub fn space(input: &str) -> IResult<&str, &str> {
+    recognize(fold_many1(space_or_comment, || (), |_, _| ()))(input)
+}
 
-named!(pub opt_space<&str, ()>, fold_many0!(
-    space_or_comment,
-    (),
-    |_, _| ()
-));
+pub fn opt_space(input: &str) -> IResult<&str, &str> {
+    recognize(fold_many0(space_or_comment, || (), |_, _| ()))(input)
+}
 
 /// Transforms a parser to automatically consume whitespace and comments
 /// between each token.
 macro_rules! wsc(
-    ($i:expr, $($args:tt)*) => ({
+    ($arg:expr) => ({
         use $crate::whitespace::opt_space;
-        sep!($i, opt_space, $($args)*)
+        use nom::sequence::delimited;
+        delimited(opt_space, $arg, opt_space)
+    });
+
+    ($arg0:expr, $($args:expr),+) => ({
+        use $crate::whitespace::opt_space;
+        use nom::sequence::delimited;
+        use nom::sequence::tuple;
+        delimited(opt_space, tuple(($arg0, $($args),*)), opt_space)
     })
 );
 
 #[cfg(test)]
 mod tests {
+    use nom::{
+        bytes::complete::{tag, take_while1},
+        multi::many0,
+        sequence::tuple,
+    };
     use whitespace::opt_space;
 
     fn is_good(c: char) -> bool {
@@ -41,28 +56,19 @@ mod tests {
 
     #[test]
     fn test_wsc() {
-        named!(test_parser<&str, Vec<&str>>, wsc!(many0!(
-            take_while!(is_good)
-        )));
-
+        let mut test_parser = many0(wsc!(take_while1(is_good)));
         let input = "a /* b */ c / * d /**/ e ";
         assert_done!(test_parser(input), vec!["a", "c", "/", "*", "d", "e"]);
     }
 
     #[test]
     fn test_opt_space() {
-        named!(test_parser<&str, &str>, do_parse!(
-            tag!("(")
-            >>
-            opt_space
-            >>
-            res: take_while!(is_good)
-            >>
-            opt_space
-            >>
-            tag!(")")
-            >>
-            (res)
+        let mut test_parser = tuple((
+            tag("("),
+            opt_space,
+            take_while1(is_good),
+            opt_space,
+            tag(")"),
         ));
 
         let input1 = "(  a  )";

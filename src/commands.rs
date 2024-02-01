@@ -1,6 +1,13 @@
-use expressions::Expression;
 use expressions::expression;
-use idents::{symbol, pattern};
+use expressions::Expression;
+use idents::{pattern, symbol};
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::combinator::map;
+use nom::combinator::opt;
+use nom::multi::separated_list1;
+use nom::sequence::pair;
+use nom::IResult;
 use whitespace::{opt_space, space};
 
 #[derive(Debug, PartialEq)]
@@ -16,86 +23,60 @@ pub enum Command {
         name: String,
         arguments: Vec<Expression>,
     },
-    Include { file: String },
+    Include {
+        file: String,
+    },
     Insert {
         order: InsertOrder,
         section: String,
     },
 }
 
-named!(inset_order<&str, InsertOrder>, alt_complete!(
-    map!(tag!("BEFORE"), |_| InsertOrder::Before) |
-    map!(tag!("AFTER"), |_| InsertOrder::After)
-));
+fn inset_order(input: &str) -> IResult<&str, InsertOrder> {
+    alt((
+        map(tag("BEFORE"), |_| InsertOrder::Before),
+        map(tag("AFTER"), |_| InsertOrder::After),
+    ))(input)
+}
 
-// named!(simple<&str, Command>, do_parse!(
-//     name: symbol
-//     >>
-//     opt_space
-//     >>
-//     opt_complete!(tag!(";"))
-//     >>
-//     (Command::Simple {
-//         name: name.into()
-//     })
-// ));
+fn call(input: &str) -> IResult<&str, Command> {
+    let (input, name) = symbol(input)?;
+    let (input, _) = wsc!(tag("("))(input)?;
+    let (input, args) = separated_list1(alt((space, wsc!(tag(",")))), expression)(input)?;
+    let (input, _) = pair(wsc!(tag(")")), opt(tag(";")))(input)?;
+    Ok((
+        input,
+        Command::Call {
+            name: name.into(),
+            arguments: args,
+        },
+    ))
+}
 
-named!(call<&str, Command>, do_parse!(
-    name: symbol
-    >>
-    wsc!(tag!("("))
-    >>
-    args: separated_nonempty_list!(
-        wsc!(opt_complete!(tag!(","))),
-        expression
-    )
-    >>
-    wsc!(tag!(")"))
-    >>
-    opt_complete!(tag!(";"))
-    >>
-    (Command::Call {
-        name: name.into(),
-        arguments: args,
-    })
-));
+fn include(input: &str) -> IResult<&str, Command> {
+    let (input, _) = pair(tag("INCLUDE"), space)(input)?;
+    let (input, file) = pattern(input)?;
+    let (input, _) = pair(opt_space, opt(tag(";")))(input)?;
+    Ok((input, Command::Include { file: file.into() }))
+}
 
-named!(include<&str, Command>, do_parse!(
-    tag!("INCLUDE")
-    >>
-    space
-    >>
-    file: pattern
-    >>
-    opt_space
-    >>
-    opt_complete!(tag!(";"))
-    >>
-    (Command::Include {
-        file: file.into()
-    })
-));
+fn insert(input: &str) -> IResult<&str, Command> {
+    let (input, _) = tag("INSERT")(input)?;
+    let (input, order) = wsc!(inset_order)(input)?;
+    let (input, section) = symbol(input)?;
+    let (input, _) = pair(opt_space, opt(tag(";")))(input)?;
+    Ok((
+        input,
+        Command::Insert {
+            order,
+            section: section.into(),
+        },
+    ))
+}
 
-named!(insert<&str, Command>, do_parse!(
-    tag!("INSERT")
-    >>
-    order: wsc!(inset_order)
-    >>
-    section: symbol
-    >>
-    opt_space
-    >>
-    opt_complete!(tag!(";"))
-    >>
-    (Command::Insert {
-        order,
-        section: section.into(),
-    })
-));
-
-named!(pub command<&str, Command>, alt_complete!(
-    include | call | insert //| simple
-));
+pub fn command(input: &str) -> IResult<&str, Command> {
+    alt((include, call, insert))(input)
+}
 
 #[cfg(test)]
 mod tests {

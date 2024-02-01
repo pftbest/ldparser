@@ -1,7 +1,12 @@
-use expressions::Expression;
 use expressions::expression;
+use expressions::Expression;
+use idents::{string, symbol};
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::combinator::map;
+use nom::combinator::opt;
+use nom::IResult;
 use whitespace::opt_space;
-use idents::{symbol, string};
 
 #[derive(Debug, PartialEq)]
 pub enum AssignOperator {
@@ -35,109 +40,109 @@ pub enum Statement {
         name: String,
         expression: Box<Expression>,
     },
-    Assert { expr: Box<Expression>, text: String },
+    Assert {
+        expr: Box<Expression>,
+        text: String,
+    },
 }
 
-named!(assign_operator<&str, AssignOperator>, map!(
-    alt_complete!(
-        tag!("=") | tag!("+=") | tag!("-=") | tag!("*=") | tag!("/=") |
-        tag!("<<=") | tag!(">>=") | tag!("&=") | tag!("|=")
-    ),
-    |op: &str| match op {
-        "=" => AssignOperator::Equals,
-        "+=" => AssignOperator::Plus,
-        "-=" => AssignOperator::Minus,
-        "*=" => AssignOperator::Multiply,
-        "/=" => AssignOperator::Divide,
-        "<<=" => AssignOperator::ShiftLeft,
-        ">>=" => AssignOperator::ShiftRight,
-        "&=" => AssignOperator::And,
-        "|=" => AssignOperator::Or,
-        _ => panic!("wrong operator")
-    }
-));
-
-named!(special_assign<&str, Statement>, do_parse!(
-    keyword: alt_complete!(
-        tag!("PROVIDE_HIDDEN") | tag!("PROVIDE") | tag!("HIDDEN")
-    )
-    >>
-    wsc!(tag!("("))
-    >>
-    name: symbol
-    >>
-    wsc!(tag!("="))
-    >>
-    expr: expression
-    >>
-    wsc!(tag!(")"))
-    >>
-    tag!(";")
-    >>
-    (match keyword {
-        "HIDDEN" => Statement::Hidden {
-            name: name.into(),
-            expression: Box::new(expr)
+fn assign_operator(input: &str) -> IResult<&str, AssignOperator> {
+    map(
+        alt((
+            tag("="),
+            tag("+="),
+            tag("-="),
+            tag("*="),
+            tag("/="),
+            tag("<<="),
+            tag(">>="),
+            tag("&="),
+            tag("|="),
+        )),
+        |op: &str| match op {
+            "=" => AssignOperator::Equals,
+            "+=" => AssignOperator::Plus,
+            "-=" => AssignOperator::Minus,
+            "*=" => AssignOperator::Multiply,
+            "/=" => AssignOperator::Divide,
+            "<<=" => AssignOperator::ShiftLeft,
+            ">>=" => AssignOperator::ShiftRight,
+            "&=" => AssignOperator::And,
+            "|=" => AssignOperator::Or,
+            _ => panic!("wrong operator"),
         },
-        "PROVIDE" => Statement::Provide {
-            name: name.into(),
-            expression: Box::new(expr)
+    )(input)
+}
+
+fn special_assign(input: &str) -> IResult<&str, Statement> {
+    let (input, keyword) = alt((tag("PROVIDE_HIDDEN"), tag("PROVIDE"), tag("HIDDEN")))(input)?;
+    let (input, _) = wsc!(tag("("))(input)?;
+    let (input, name) = symbol(input)?;
+    let (input, _) = wsc!(tag("="))(input)?;
+    let (input, expr) = expression(input)?;
+    let (input, _) = wsc!(tag(")"))(input)?;
+    let (input, _) = tag(";")(input)?;
+    Ok((
+        input,
+        match keyword {
+            "HIDDEN" => Statement::Hidden {
+                name: name.into(),
+                expression: Box::new(expr),
+            },
+            "PROVIDE" => Statement::Provide {
+                name: name.into(),
+                expression: Box::new(expr),
+            },
+            "PROVIDE_HIDDEN" => Statement::ProvideHidden {
+                name: name.into(),
+                expression: Box::new(expr),
+            },
+            _ => panic!("invalid assign keyword"),
         },
-        "PROVIDE_HIDDEN" => Statement::ProvideHidden {
+    ))
+}
+
+fn assign(input: &str) -> IResult<&str, Statement> {
+    let (input, name) = symbol(input)?;
+    let (input, op) = wsc!(assign_operator)(input)?;
+    let (input, expr) = expression(input)?;
+    let (input, _) = opt_space(input)?;
+    let (input, _) = tag(";")(input)?;
+    Ok((
+        input,
+        Statement::Assign {
             name: name.into(),
-            expression: Box::new(expr)
+            operator: op,
+            expression: Box::new(expr),
         },
-        _ => panic!("invalid assign keyword")
-    })
-));
+    ))
+}
 
-named!(assign<&str, Statement>, do_parse!(
-    name: symbol
-    >>
-    op: wsc!(assign_operator)
-    >>
-    expr: expression
-    >>
-    opt_space
-    >>
-    tag!(";")
-    >>
-    (Statement::Assign {
-        name: name.into(),
-        operator: op,
-        expression: Box::new(expr)
-    })
-));
+fn assert_stmt(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = tag("ASSERT")(input)?;
+    let (input, _) = wsc!(tag("("))(input)?;
+    let (input, expr) = expression(input)?;
+    let (input, _) = wsc!(tag(","))(input)?;
+    let (input, text) = string(input)?;
+    let (input, _) = wsc!(tag(")"))(input)?;
+    let (input, _) = opt(tag(";"))(input)?;
+    Ok((
+        input,
+        Statement::Assert {
+            expr: Box::new(expr),
+            text: text.into(),
+        },
+    ))
+}
 
-named!(assert_stmt<&str, Statement>, do_parse!(
-    tag!("ASSERT")
-    >>
-    wsc!(tag!("("))
-    >>
-    expr: expression
-    >>
-    wsc!(tag!(","))
-    >>
-    text: string
-    >>
-    wsc!(tag!(")"))
-    >>
-    opt_complete!(tag!(";"))
-    >>
-    (Statement::Assert {
-        expr: Box::new(expr),
-        text: text.into(),
-    })
-));
-
-named!(pub statement<&str, Statement>, alt_complete!(
-    special_assign | assign | assert_stmt
-));
+pub fn statement(input: &str) -> IResult<&str, Statement> {
+    alt((special_assign, assign, assert_stmt))(input)
+}
 
 #[cfg(test)]
 mod tests {
-    use statements::*;
     use expressions::Expression;
+    use statements::*;
 
     #[test]
     fn test_statement() {

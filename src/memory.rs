@@ -1,4 +1,11 @@
 use idents::symbol;
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_until},
+    combinator::opt,
+    sequence::{delimited, tuple},
+    IResult,
+};
 use numbers::number;
 use whitespace::opt_space;
 
@@ -9,49 +16,39 @@ pub struct Region {
     pub length: u64,
 }
 
-named!(attributes<&str, &str>, delimited!(
-    tag!("("),
-    take_until!(")"),
-    tag!(")")
-));
+fn attributes(input: &str) -> IResult<&str, &str> {
+    delimited(tag("("), take_until(")"), tag(")"))(input)
+}
 
-named!(origin<&str, &str>, alt_complete!(
-    tag!("ORIGIN") | tag!("org") | tag!("o")
-));
+fn origin(input: &str) -> IResult<&str, &str> {
+    alt((tag("ORIGIN"), tag("org"), tag("o")))(input)
+}
 
-named!(length<&str, &str>, alt_complete!(
-    tag!("LENGTH") | tag!("len") | tag!("l")
-));
+fn length(input: &str) -> IResult<&str, &str> {
+    alt((tag("LENGTH"), tag("len"), tag("l")))(input)
+}
 
-named!(pub region<&str, Region>, do_parse!(
-    name: symbol
-    >>
-    opt_space
-    >>
-    opt!(attributes)
-    >>
-    wsc!(tag!(":"))
-    >>
-    origin
-    >>
-    wsc!(tag!("="))
-    >>
-    org: number
-    >>
-    wsc!(tag!(","))
-    >>
-    length
-    >>
-    wsc!(tag!("="))
-    >>
-    len: number
-    >>
-    (Region {
-        name: name.into(),
-        origin: org,
-        length: len
-    })
-));
+pub fn region(input: &str) -> IResult<&str, Region> {
+    let (input, name) = symbol(input)?;
+    let (input, _) = tuple((
+        opt_space,
+        opt(attributes),
+        wsc!(tag(":")),
+        origin,
+        wsc!(tag("=")),
+    ))(input)?;
+    let (input, org) = number(input)?;
+    let (input, _) = tuple((wsc!(tag(",")), length, wsc!(tag("="))))(input)?;
+    let (input, len) = number(input)?;
+    Ok((
+        input,
+        Region {
+            name: name.into(),
+            origin: org,
+            length: len,
+        },
+    ))
+}
 
 #[cfg(test)]
 mod tests {

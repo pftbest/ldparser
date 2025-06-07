@@ -64,6 +64,13 @@ mod tests {
     }
 
     #[test]
+    fn test_bootloader() {
+        let input = include_str!("../tests/bootloader.ld");
+        let res = parse(&input);
+        assert!(!res.unwrap().1.is_empty());
+    }
+
+    #[test]
     fn test_parse() {
         for entry in fs::read_dir("tests").unwrap() {
             let path = entry.unwrap().path();

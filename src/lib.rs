@@ -29,6 +29,7 @@ mod utils;
 #[macro_use]
 mod whitespace;
 mod commands;
+mod eval;
 mod expressions;
 mod idents;
 mod memory;

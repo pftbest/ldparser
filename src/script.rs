@@ -1,16 +1,25 @@
+use std::cell::RefCell;
+
 use commands::{command, Command};
 use memory::region;
 use memory::Region;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::map;
-use nom::multi::many1;
 use nom::sequence::tuple;
 use nom::IResult;
 use sections::section_command;
 use sections::SectionCommand;
 use statements::{statement, Statement};
 use whitespace::opt_space;
+
+thread_local! {
+    pub(crate) static PARSE_STATE: RefCell<ParseState> = RefCell::new(ParseState::default());
+}
+
+#[derive(Debug, Default)]
+pub struct ParseState {
+    pub items: Vec<RootItem>,
+}
 
 #[derive(Debug, PartialEq)]
 pub enum RootItem {
@@ -20,34 +29,99 @@ pub enum RootItem {
     Sections { list: Vec<SectionCommand> },
 }
 
-fn statement_item(input: &str) -> IResult<&str, RootItem> {
-    map(statement, |stmt| RootItem::Statement(stmt))(input)
+fn statement_item(input: &str) -> IResult<&str, ()> {
+    let (input, stmt) = statement(input)?;
+    PARSE_STATE.with_borrow_mut(|s| s.items.push(RootItem::Statement(stmt)));
+    Ok((input, ()))
 }
 
-fn command_item(input: &str) -> IResult<&str, RootItem> {
-    map(command, |cmd| RootItem::Command(cmd))(input)
+fn command_item(input: &str) -> IResult<&str, ()> {
+    let (input, cmd) = command(input)?;
+    PARSE_STATE.with_borrow_mut(|s| s.items.push(RootItem::Command(cmd)));
+    Ok((input, ()))
 }
 
-fn memory_item(input: &str) -> IResult<&str, RootItem> {
-    let (input, _) = tuple((tag("MEMORY"), wsc!(tag("{"))))(input)?;
-    let (input, regions) = many1(wsc!(region))(input)?;
+fn memory_item(input: &str) -> IResult<&str, ()> {
+    let (mut input, _) = tuple((tag("MEMORY"), wsc!(tag("{"))))(input)?;
+    PARSE_STATE.with_borrow_mut(|s| {
+        s.items.push(RootItem::Memory {
+            regions: Vec::new(),
+        })
+    });
+    loop {
+        match wsc!(region)(input) {
+            Ok((next_input, region_item)) => {
+                PARSE_STATE.with_borrow_mut(|s| {
+                    if let Some(RootItem::Memory { regions }) = s.items.last_mut() {
+                        regions.push(region_item);
+                    }
+                });
+                input = next_input;
+            }
+            Err(nom::Err::Error(_)) | Err(nom::Err::Incomplete(_)) => break,
+            Err(e) => return Err(e),
+        }
+    }
     let (input, _) = tag("}")(input)?;
-    Ok((input, RootItem::Memory { regions: regions }))
+    Ok((input, ()))
 }
 
-fn sections_item(input: &str) -> IResult<&str, RootItem> {
-    let (input, _) = tuple((tag("SECTIONS"), wsc!(tag("{"))))(input)?;
-    let (input, sections) = many1(wsc!(section_command))(input)?;
+fn sections_item(input: &str) -> IResult<&str, ()> {
+    let (mut input, _) = tuple((tag("SECTIONS"), wsc!(tag("{"))))(input)?;
+    PARSE_STATE.with_borrow_mut(|s| s.items.push(RootItem::Sections { list: Vec::new() }));
+    loop {
+        match wsc!(section_command)(input) {
+            Ok((next_input, section_item)) => {
+                PARSE_STATE.with_borrow_mut(|s| {
+                    if let Some(RootItem::Sections { list }) = s.items.last_mut() {
+                        list.push(section_item);
+                    }
+                });
+                input = next_input;
+            }
+            Err(nom::Err::Error(_)) | Err(nom::Err::Incomplete(_)) => break,
+            Err(e) => return Err(e),
+        }
+    }
     let (input, _) = tag("}")(input)?;
-    Ok((input, RootItem::Sections { list: sections }))
+    Ok((input, ()))
 }
 
-fn root_item(input: &str) -> IResult<&str, RootItem> {
+fn root_item(input: &str) -> IResult<&str, ()> {
     alt((statement_item, memory_item, sections_item, command_item))(input)
 }
 
+pub(crate) fn clear_state() {
+    // Reset thread-local state
+    PARSE_STATE.with_borrow_mut(|state| {
+        *state = ParseState::default();
+    });
+}
+
 pub fn parse(input: &str) -> IResult<&str, Vec<RootItem>> {
-    alt((many1(wsc!(root_item)), map(opt_space, |_| vec![])))(input)
+    clear_state();
+
+    let mut input = input;
+    loop {
+        // Try to parse a root_item, skipping optional whitespace before it
+        match wsc!(root_item)(input) {
+            Ok((next_input, ())) => {
+                input = next_input;
+            }
+            Err(nom::Err::Error(_)) | Err(nom::Err::Incomplete(_)) => {
+                // No more root_items found, stop the loop
+                break;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
+    // Skip trailing optional whitespace
+    let (input, _) = opt_space(input)?;
+
+    let items = PARSE_STATE.with(|s| std::mem::take(&mut *s.borrow_mut()));
+
+    Ok((input, items.items))
 }
 
 #[cfg(test)]

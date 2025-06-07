@@ -55,6 +55,11 @@ pub fn region(input: &str) -> IResult<&str, Region> {
 mod tests {
     use memory::*;
 
+    use crate::{
+        script::{clear_state, PARSE_STATE},
+        AssignOperator, Expression, RootItem, Statement,
+    };
+
     #[test]
     fn test_region() {
         assert_done!(
@@ -119,6 +124,59 @@ mod tests {
                 name: "RAM".into(),
                 origin: 0x20000000 + 4 * 1024,
                 length: 640 * 1024 - 4 * 1024,
+            }
+        );
+
+        clear_state();
+        PARSE_STATE.with_borrow_mut(|state| {
+            state.items.push(RootItem::Statement(Statement::Assign {
+                name: "A".into(),
+                operator: AssignOperator::Equals,
+                expression: Box::new(Expression::Number(11)),
+            }));
+        });
+
+        assert_done!(
+            region("rom (rx)  : ORIGIN = 0, LENGTH = A"),
+            Region {
+                name: "rom".into(),
+                origin: 0,
+                length: 11,
+            }
+        );
+
+        PARSE_STATE.with_borrow_mut(|state| {
+            state.items.push(RootItem::Memory {
+                regions: vec![Region {
+                    name: String::from("FLASH"),
+                    origin: 0x08000000,
+                    length: 256 * 1024,
+                }],
+            });
+        });
+
+        PARSE_STATE.with_borrow_mut(|state| {
+            state.items.push(RootItem::Statement(Statement::Assign {
+                name: "FLASH_SIZE".into(),
+                operator: AssignOperator::Equals,
+                expression: Box::new(Expression::Number(256 * 1024)),
+            }));
+        });
+
+        PARSE_STATE.with_borrow_mut(|state| {
+            state.items.push(RootItem::Statement(Statement::Assign {
+                name: "EEPROM_SIZE".into(),
+                operator: AssignOperator::Equals,
+                expression: Box::new(Expression::Number(4 * 1024)),
+            }));
+        });
+
+        assert_done!(
+            region("EEPROM_FLASH  (r)  : ORIGIN = ORIGIN(FLASH) + FLASH_SIZE - EEPROM_SIZE, LENGTH = EEPROM_SIZE"),
+            Region {
+                name: "EEPROM_FLASH".into(),
+                origin: 0x803F000,
+                length: 4 * 1024,
             }
         );
     }
